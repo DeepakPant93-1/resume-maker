@@ -1,0 +1,72 @@
+{
+  "metadata": {
+    "title": "Senior Software Engineer Resume",
+    "template": "Modern",
+    "ats_score": 92
+  },
+  "profile": {
+    "full_name": "Suraj Singh Karki",
+    "job_title": "Senior Software Engineer",
+    "email": "suraj.karki@coredge.io",
+    "phone": "+91-9800000000",
+    "location": "Noida, India",
+    "linkedin": "linkedin.com/in/surajsingh",
+    "summary": "Results-driven software engineer with 5+ years of experience building scalable backend systems and leading cross-functional teams. Skilled in cloud infrastructure, API design, and mentoring junior developers."
+  },
+  "experience": [
+    {
+      "job_title": "Senior Backend Engineer",
+      "company": "Coredge",
+      "start_date": "Jan 2023",
+      "end_date": "Present",
+      "current": true,
+      "achievements": "Led migration of monolithic service to microservices architecture, reducing deployment time by 40%\nDesigned and implemented REST APIs used by 3 internal product teams\nMentored 2 junior engineers and conducted code reviews"
+    },
+    {
+      "job_title": "Software Engineer",
+      "company": "Previous Company Pvt. Ltd.",
+      "start_date": "Jun 2021",
+      "end_date": "Dec 2022",
+      "current": false,
+      "achievements": "Built and maintained data pipelines processing 1M+ records daily\nImproved API response time by 30% through query optimization"
+    }
+  ],
+  "education": [
+    {
+      "degree": "B.Tech, Computer Science",
+      "university": "Example Institute of Technology",
+      "start_year": "2017",
+      "end_year": "2021",
+      "grade": "8.5 CGPA",
+      "location": "India"
+    }
+  ],
+  "skills": {
+    "languages": ["Python", "JavaScript", "Go"],
+    "frameworks": ["FastAPI", "React", "Spring Boot"],
+    "tools": ["Docker", "Kubernetes", "AWS", "PostgreSQL"]
+  },
+  "projects": [
+    {
+      "name": "Resume Maker AI Agent",
+      "description": "An AI-powered tool that generates and optimizes resumes based on job descriptions, providing ATS scoring and keyword matching.",
+      "technologies": "Python, FastAPI, OpenAI API, Streamlit"
+    }
+  ],
+  "certifications": [
+    {
+      "name": "AWS Certified Developer - Associate (2022)",
+      "issuer": "Amazon Web Services"
+    }
+  ],
+  "spoken_languages": [
+    {
+      "language": "English",
+      "proficiency": "Fluent"
+    },
+    {
+      "language": "Hindi",
+      "proficiency": "Native"
+    }
+  ]
+}
