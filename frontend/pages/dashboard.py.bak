@@ -1,0 +1,81 @@
+"""Dashboard Page"""
+import streamlit as st
+
+
+def render():
+    """Render dashboard page"""
+    st.markdown("# Good evening, Suraj! 👋")
+    st.markdown("Build, optimize and land your next opportunity with AI.")
+
+    col_btn1, col_btn2, col_btn3 = st.columns(3)
+    with col_btn1:
+        if st.button("✨ Create New Resume", key="create_btn", use_container_width=True):
+            st.session_state.page = "CreateResume"
+            st.rerun()
+    with col_btn2:
+        if st.button("🎨 Choose Template", key="template_btn", use_container_width=True):
+            st.session_state.page = "Templates"
+            st.rerun()
+    with col_btn3:
+        if st.button("🤖 Use AI Agent", key="ai_btn", use_container_width=True):
+            st.session_state.page = "AIAgents"
+            st.rerun()
+
+    st.markdown("---")
+    st.markdown("## 📊 Your Dashboard")
+
+    col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+    with col_m1:
+        st.markdown("""
+        <div class="metric-box">
+            <h3>3</h3>
+            <p>Total Resumes</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_m2:
+        st.markdown("""
+        <div class="metric-box">
+            <h3>12</h3>
+            <p>Applications</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_m3:
+        st.markdown("""
+        <div class="metric-box">
+            <h3>92%</h3>
+            <p>Best ATS Score</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_m4:
+        st.markdown("""
+        <div class="metric-box">
+            <h3>50</h3>
+            <p>AI Credits</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown("## 📋 Your Resumes")
+
+    resumes = st.session_state.get("resumes", [])
+    if resumes:
+        for idx, resume in enumerate(resumes):
+            col1_res, col2_res = st.columns([0.85, 0.15])
+            with col1_res:
+                st.markdown(f"""
+                <div class="resume-card">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <h3 style="margin: 0; color: #333;">📄 {resume.get('name', 'Resume ' + str(idx+1))}</h3>
+                            <p style="color: #999; font-size: 0.9rem; margin: 0.5rem 0 0 0;">Updated {resume.get('updated', 'just now')}</p>
+                        </div>
+                        <span class="ats-badge">✓ ATS {resume.get('ats_score', 92)}%</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            with col2_res:
+                if st.button("✏️", key=f"edit_{idx}_{resume.get('name', 'new')}", use_container_width=True):
+                    st.session_state.page = "MyResumes"
+                    st.rerun()
+    else:
+        st.info("No resumes yet. Create your first resume to get started!")

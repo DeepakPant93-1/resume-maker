@@ -1,0 +1,13 @@
+[client]
+# Hide Streamlit's automatic page list (it picks up frontend/pages/)
+showSidebarNavigation = false
+# Hide the Deploy button / developer menu
+toolbarMode = "minimal"
+
+[theme]
+base = "light"
+primaryColor = "#6C4FE0"
+backgroundColor = "#F5F6FA"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#111827"
+font = "sans serif"
