@@ -13,7 +13,7 @@ Full product context (problem statement, features, user journey) lives in [produ
 | Path | Purpose |
 |---|---|
 | [frontend/](frontend/) | The application UI. Built with **Streamlit** (Python). Currently the only implemented layer — see below. |
-| [backend/](backend/) | Reserved for the backend/API service. **Currently empty** — not yet implemented. Do not assume backend endpoints exist. |
+| [backend/](backend/) | Backend services. Contains two folders: [backend/resumemaker/](backend/resumemaker/) (Java Spring Boot API, scaffold only) and [backend/agents/](backend/agents/) (Python FastAPI + LangGraph agent service, in progress). Do not assume backend endpoints exist yet. |
 | [doc/](doc/) | Technical/architecture documentation (structure notes, UI walkthroughs, prototype docs). |
 | [product/](product/) | Product requirements: vision, problem statement, features, user journeys. Start here to understand *why* before changing *what*. |
 | [.github/agents/](.github/agents/) | AI agent definitions/personas for this repo. |
@@ -38,7 +38,42 @@ Full product context (problem statement, features, user journey) lives in [produ
 
 ## Backend
 
-Not yet implemented. If asked to add backend functionality, confirm with the user whether to scaffold a new service under `backend/` rather than assuming an existing API contract.
+The backend has two folders:
+
+- [backend/resumemaker/](backend/resumemaker/): Java Spring Boot API. Scaffold only, no endpoints implemented yet.
+- [backend/agents/](backend/agents/): Python agent service (FastAPI + LangGraph). In progress; see the architecture section below.
+
+Do not assume an existing API contract. If asked to add backend functionality, confirm with the user which of the two services it belongs to.
+
+## Planned architecture (multi-agent)
+
+Two backend services (the Spring Boot API is a scaffold only; the Python agent service is in progress):
+- **Java Spring Boot API** (`backend/resumemaker/`): CRUD, MongoDB, sessions/chat, SSE relay to the UI.
+- **Python agent service** (`backend/agents/`, in progress): FastAPI + **LangGraph**, all agents in one process.
+
+Agents (tool-using, looping): **Orchestrator**, **Gap Analyst**, **Rewriter**, **Reviewer**. Deterministic steps (not agents): parse resume, extract JD, ATS score, export. Agents share a LangGraph `RunState`; `ask_user` uses LangGraph `interrupt()` with a checkpointer. Every rewritten claim must carry a `source_ref` to the original resume, and the Reviewer rejects claims without one.
+
+```
+                    ┌───────────────────────────────────────────────┐
+   user chat ─────▶ │                  ORCHESTRATOR                 │ ◀── user clarifications (ask_user)
+                    │     (plans, delegates, decides when done)     │
+                    └───────┬───────────────┬───────────────┬───────┘
+                            │               │               │           delegates as tools
+                            ▼               ▼               ▼        
+                       Gap Analyst      Rewriter        Reviewer     
+                         (agent)         (agent)         (agent)     
+
+  (Research agent: deferred, not part of the current agents)
+
+  Deterministic steps the agents call as tools:
+  parse_resume · extract_jd · ats_score · export_resume
+```
+
+Code lives in `backend/agents/app/` (`agents/`, `tools/`, `steps/`, `graph/`, `schemas/`, `core/`, `api/`). The Orchestrator is implemented in `backend/agents/app/agents/orchestrator.py`; the other agents are not yet built.
+
+### Deferred / future work
+- **Research agent**: web search on the company and role to align tone and keywords. Deferred; it would be the only agent with internet access.
+- **Cost and latency per run**: open question, to be decided later. Multi-agent runs cost roughly 3-10x a single LLM call. Levers: smaller model for Gap Analyst, cache JD analysis, per-run token budget.
 
 ## Running the app
 
