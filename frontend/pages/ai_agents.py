@@ -5,6 +5,7 @@ import re
 
 import streamlit as st
 
+from pages.ai_run import render_run
 from pages.job_match import KEYWORDS
 from pages.my_resumes import editor_preview_html, initialize_resume_data
 from styles.theme import card, css, html, page_header
@@ -57,9 +58,13 @@ section[data-testid="stSidebar"], [data-testid="stExpandSidebarButton"] { displa
 
 
 def render_workspace():
-    head, btn = st.columns([3, 1], vertical_alignment="center")
+    head, tailor, btn = st.columns([3, 1, 1], vertical_alignment="center")
     with head:
         page_header("AI Agent Workspace", "Specialized autonomous agents collaborating to optimize your professional profile.")
+    with tailor:
+        if st.button("Tailor to a job", use_container_width=True, key="open_run"):
+            st.session_state.agent_view = "run"
+            st.rerun()
     with btn:
         if st.button("✦ Open Resume Agent", type="primary", use_container_width=True, key="open_agent"):
             st.session_state.agent_view = "chat"
@@ -144,6 +149,10 @@ def _prefill(text):
     st.session_state.agent_input = text
 
 
+def _open_run():
+    st.session_state.agent_view = "run"
+
+
 def _back_target():
     return st.session_state.get("agent_back", "MyResumes")
 
@@ -200,8 +209,13 @@ def render_chat():
                         for row in (QUICK_ACTIONS[:2], QUICK_ACTIONS[2:]):
                             for col, action in zip(st.columns(2), row):
                                 with col:
-                                    st.button(action, key=f"chip_{action}", on_click=_prefill, args=(action,),
-                                              use_container_width=True)
+                                    # "Tailor to a job" is a real AI run (needs a job description), not a chat edit.
+                                    if action == "Tailor to a job":
+                                        st.button(action, key=f"chip_{action}", on_click=_open_run,
+                                                  use_container_width=True)
+                                    else:
+                                        st.button(action, key=f"chip_{action}", on_click=_prefill, args=(action,),
+                                                  use_container_width=True)
             if pending:
                 a, u, _ = st.columns([1.4, 0.9, 0.7])
                 with a:
@@ -250,7 +264,10 @@ def render_chat():
 
 def render():
     css(_CSS)
-    if st.session_state.get("agent_view") == "chat":
+    view = st.session_state.get("agent_view")
+    if view == "run":
+        render_run()
+    elif view == "chat":
         render_chat()
     else:
         render_workspace()

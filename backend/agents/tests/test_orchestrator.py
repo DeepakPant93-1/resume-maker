@@ -34,7 +34,7 @@ def _call(name: str, args: dict, call_id: str) -> AIMessage:
 
 
 def _runners(log: list[str]) -> dict:
-    return {n: (lambda task, n=n: log.append(f"{n}:{task}") or f"{n} done") for n in SPECIALISTS}
+    return {n: (lambda task, state, n=n: log.append(f"{n}:{task}") or f"{n} done") for n in SPECIALISTS}
 
 
 def test_delegates_to_specialist_and_returns_final_answer():

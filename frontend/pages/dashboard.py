@@ -1,10 +1,13 @@
 """
 Dashboard page - matches the Figma "Good evening, Suraj" screen
 """
-from datetime import datetime
+import html as _html
+import re
+from datetime import datetime, timezone
 
 import streamlit as st
 from styles.theme import html, page_header, stat_card
+from utils.api_client import ApiError, get_resume, list_resumes, to_editor_data
 
 _CSS = """
 <style>
@@ -50,6 +53,47 @@ def _go(page_key):
     st.rerun()
 
 
+def _ago(updated_at):
+    """'5 min ago' style text for an ISO timestamp from the backend; resumes saved before timestamps existed have none."""
+    if not updated_at:
+        return "Saved earlier"
+    try:
+        # Python 3.9 cannot parse a trailing Z or varying fraction digits, and the fraction is not needed here.
+        saved = datetime.fromisoformat(re.sub(r"\.\d+", "", updated_at).replace("Z", "+00:00"))
+    except ValueError:
+        return "Saved earlier"
+    seconds = (datetime.now(timezone.utc) - saved).total_seconds()
+    if seconds < 60:
+        return "Updated just now"
+    if seconds < 3600:
+        return f"Updated {int(seconds // 60)} min ago"
+    if seconds < 86400:
+        return f"Updated {int(seconds // 3600)} h ago"
+    if seconds < 7 * 86400:
+        return f"Updated {int(seconds // 86400)} d ago"
+    return "Updated " + saved.astimezone().strftime("%d %b %Y")
+
+
+def _load_resumes():
+    """(resumes, error): the saved resumes from the backend, or an empty list and a message if it is unreachable."""
+    try:
+        return list_resumes(), None
+    except ApiError as e:
+        return [], str(e)
+
+
+def _open_resume(resume_id):
+    """Load a saved resume into the editor and go there."""
+    try:
+        resume = get_resume(resume_id)
+    except ApiError as e:
+        st.error(str(e))
+        return
+    st.session_state.resume_data = to_editor_data(resume)
+    st.session_state.resume_id = resume["id"]
+    _go("MyResumes")
+
+
 def render():
     st.markdown(_CSS, unsafe_allow_html=True)
 
@@ -72,13 +116,13 @@ def render():
                 _go("Templates")
 
     # ---- Stats ----
-    resumes = st.session_state.get("resumes", [])
-    best_ats = max((r.get("ats_score", 0) for r in resumes), default=0)
+    resumes, load_error = _load_resumes()
+    scores = [r["ats_score"] for r in resumes if r.get("ats_score") is not None]
     stats = [
         ("Total Resumes", len(resumes), None),
-        ("Applications", st.session_state.get("applications_count", 12), None),
-        ("Best ATS Score", f"{best_ats}%", "#22A06B"),
-        ("AI Credits", st.session_state.get("ai_credits", 50), "#6C4FE0"),
+        ("Applications", st.session_state.get("applications_count", 12), None),  # no backend for this yet
+        ("Best ATS Score", f"{max(scores)}%" if scores else "—", "#22A06B"),
+        ("AI Credits", st.session_state.get("ai_credits", 50), "#6C4FE0"),  # no backend for this yet
     ]
     for col, (label, value, color) in zip(st.columns(4), stats):
         with col:
@@ -86,6 +130,9 @@ def render():
 
     # ---- Your Resumes ----
     html('<div class="r-section-title">Your Resumes</div>')
+    if load_error:
+        st.warning(f"Could not load your resumes: {load_error}")
+        return
     if not resumes:
         html('<div class="r-card r-muted">No resumes yet. Create your first one above.</div>')
         return
@@ -93,11 +140,16 @@ def render():
     cols = st.columns(3)
     for i, r in enumerate(resumes):
         with cols[i % 3]:
+            score = r.get("ats_score")
+            badge = (f'<span class="r-badge">✓ ATS {score}%</span>' if score is not None
+                     else '<span class="r-badge idle">ATS —</span>')
             html(
                 f'<div class="r-resume-card">'
                 f'<div class="r-resume-thumb">{_DOC_ICON}</div>'
-                f'<div class="r-resume-name">{r["name"]}</div>'
-                f'<div class="r-resume-meta">{r.get("updated", "Updated recently")}</div>'
-                f'<span class="r-badge">✓ ATS {r.get("ats_score", 0)}%</span>'
+                f'<div class="r-resume-name">{_html.escape(r["title"])}</div>'
+                f'<div class="r-resume-meta">{_ago(r.get("updated_at"))}</div>'
+                f'{badge}'
                 f'</div>'
             )
+            if st.button("Open in editor", key=f"open_{r['id']}", use_container_width=True):
+                _open_resume(r["id"])

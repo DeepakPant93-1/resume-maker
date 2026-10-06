@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: resumemaker
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+agent:
+  service:
+    url: http://localhost:8000
+
+logging:
+  pattern:
+    console: "%green(%d{HH:mm:ss.SSS}) %blue(%-5level) %red([%thread]) %yellow(%logger{15}) - %msg%n"

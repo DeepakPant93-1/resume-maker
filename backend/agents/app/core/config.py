@@ -26,6 +26,17 @@ class Settings(BaseSettings):
     orchestrator_model: Optional[str] = None
     # Upper bound on graph steps (model call + tool call each count) for one orchestrator run.
     orchestrator_max_steps: int = 25
+    # Per-request timeout and retry count for LLM calls, so a stalled call fails instead of hanging.
+    llm_timeout_seconds: float = 90
+    # The client backs off exponentially between retries, so 5 rides out a short provider overload (HTTP 503).
+    llm_max_retries: int = 5
+    # Model used when the primary keeps failing. Defaults to the other provider's model when its key is set.
+    fallback_model: Optional[str] = None
+    # MongoDB for run records and graph checkpoints. When unset, both live in memory and are lost on restart.
+    mongodb_uri: Optional[str] = None
+    mongodb_database: str = "resume_maker"
+    # Log level of the service's own loggers: DEBUG, INFO, WARNING...
+    log_level: str = "INFO"
 
     def resolved_provider(self) -> str:
         if self.provider:

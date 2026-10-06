@@ -3,6 +3,7 @@ import streamlit as st
 
 from components.resume_preview import TEMPLATES, resume_html, template_thumb
 from styles.theme import card, css, donut, html, page_header
+from utils.api_client import ApiError, to_editor_data, upload_resume
 
 STEPS = ["Personal info", "Experience", "Education", "Skills", "Template", "Preview"]
 SUGGESTED_SKILLS = ["Redis", "CI/CD", "Terraform", "REST APIs", "JUnit"]
@@ -271,6 +272,7 @@ def _preview(r, placeholders=True):
 
 def _save_to_editor(r):
     """Copy the wizard result into the editor + resume list."""
+    st.session_state.resume_id = None  # a new resume: Save must create it, not overwrite the previous one
     st.session_state.resume_data = {
         "profile": dict(r["personal_info"]),
         "experience": [dict(j) for j in r["experience"] if j["job_title"] or j["company"]],
@@ -279,8 +281,6 @@ def _save_to_editor(r):
         "projects": [],
         "certifications": [{"name": r["certifications"], "issuer": ""}] if r["certifications"] else [],
     }
-    title = r["personal_info"]["job_title"] or r["name"]
-    st.session_state.resumes.append({"name": title, "ats_score": 92, "updated": "Updated just now"})
 
 
 def step_preview(r):
@@ -378,10 +378,20 @@ def render_upload():
     _back_to_start()
     page_header("Upload your resume", "We'll extract your experience, skills and education.")
     with card("upload"):
-        uploaded = st.file_uploader("Choose a PDF or DOCX file", type=["pdf", "docx"])
-        if uploaded is not None:
-            st.success(f"File uploaded: {uploaded.name}")
-            st.info("Parsing needs the backend integration.")
+        uploaded = st.file_uploader("Choose a PDF file", type=["pdf"])
+        if uploaded is not None and st.button("Upload and parse", type="primary", key="upload_parse"):
+            try:
+                with st.spinner("Reading your resume..."):
+                    resume = upload_resume(uploaded.name, uploaded.getvalue())
+            except ApiError as e:
+                st.error(str(e))
+                return
+            data = to_editor_data(resume)
+            st.session_state.resume_data = data
+            st.session_state.resume_id = resume.get("id")
+            st.session_state.builder_mode = None
+            st.session_state.page = "MyResumes"
+            st.rerun()
 
 
 def render_ai_generate():

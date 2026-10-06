@@ -9,7 +9,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import streamlit as st
 from styles.theme import apply_theme, html
-from pages import dashboard, create_resume, my_resumes, job_match, templates, ai_agents, applications, settings
+from pages import dashboard, create_resume, my_resumes, job_match, templates, ai_agents, applications, settings, login
+from utils import auth
+from utils.api_client import ApiError, whoami
 
 # Accent colour per menu item (icon tile, hover tint)
 NAV_COLORS = {
@@ -55,14 +57,6 @@ def initialize_app():
 def init_state():
     if "page" not in st.session_state:
         st.session_state.page = "Dashboard"
-    if "user" not in st.session_state:
-        st.session_state.user = {"name": "Suraj Singh", "role": "Technical Lead"}
-    if "resumes" not in st.session_state:
-        st.session_state.resumes = [
-            {"name": "Backend Developer", "ats_score": 92, "updated": "Updated recently"},
-            {"name": "AI Engineer", "ats_score": 87, "updated": "Updated recently"},
-            {"name": "Cloud Architect", "ats_score": 81, "updated": "Updated recently"},
-        ]
 
 
 def go_to(page_key: str):
@@ -119,6 +113,10 @@ def render_sidebar():
                 if key == "AIAgents":
                     st.session_state.agent_view = "workspace"
                 go_to(key)
+        st.divider()
+        if st.button("Log out", key="logout", icon=":material/logout:", use_container_width=True):
+            auth.sign_out()
+            st.rerun()
 
 
 def render_topbar():
@@ -138,7 +136,7 @@ def render_topbar():
             html(
                 f'<div class="r-user"><div class="r-avatar">{initials}</div>'
                 f'<div><div class="r-user-name">{user["name"]}</div>'
-                f'<div class="r-user-role">{user["role"]}</div></div></div>'
+                f'<div class="r-user-role">{user["email"]}</div></div></div>'
             )
 
 
@@ -146,21 +144,45 @@ def in_focus_mode():
     """The resume builder wizard is full-screen in Figma (no sidebar / search bar)."""
     page = st.session_state.page
     return ((page == "CreateResume" and st.session_state.get("builder_mode") == "builder")
-            or (page == "AIAgents" and st.session_state.get("agent_view") == "chat"))
+            or (page == "AIAgents" and st.session_state.get("agent_view") in ("chat", "run")))
 
 
 def render_page():
     PAGES.get(st.session_state.page, dashboard).render()
 
 
+def restore_login():
+    """After a page refresh the session is new. Log in again from the saved token cookie if it is still valid."""
+    if auth.restore_attempted():
+        return False
+    auth.mark_restore_attempted()
+    saved = auth.saved_token()
+    if not saved:
+        return False
+    try:
+        user = whoami(saved)
+    except ApiError as e:
+        if e.status_code == 401:  # expired or not accepted any more: drop the cookie. Any other error (backend down) keeps it.
+            auth.forget_cookie()
+        return False
+    auth.sign_in({"token": saved, "user": user}, remember=False)  # the cookie already holds this token
+    return True
+
+
 def run():
     """Main application entry point"""
     initialize_app()
+    authenticated = auth.is_authenticated() or restore_login()
+    if not authenticated:
+        login.render()  # nothing else is shown, and no other backend call is made, until someone logs in
+        auth.flush_cookie()
+        return
     init_state()
     render_sidebar()
     if not in_focus_mode():
         render_topbar()
     render_page()
+    auth.flush_cookie()  # last, so its invisible element does not shift the page: writes/removes the cookie after a login/logout
 
 
 if __name__ == "__main__":
