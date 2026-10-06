@@ -1,12 +1,11 @@
-"""Builds the specialist agents (Gap Analyst, Rewriter, Reviewer) the Orchestrator delegates to."""
+"""Builds the specialist agents (Gap Analyst, Rewriter, Reviewer) the workflow runs."""
 from collections.abc import Mapping
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 
-from app.agents.base import _job_block  # noqa: F401 - re-exported for callers and tests
-from app.agents.gapAnalyst import GAP_ANALYST_PROMPT, GapAnalystAgent
-from app.agents.orchestrator import SpecialistRunner
+from app.agents.gap_analyst import GAP_ANALYST_PROMPT, GapAnalystAgent
+from app.agents.result import SpecialistRunner
 from app.agents.reviewer import REVIEWER_PROMPT, ReviewerAgent
 from app.agents.rewriter import REWRITER_PROMPT, RewriterAgent
 
@@ -20,7 +19,7 @@ PROMPTS: Mapping[str, str] = {
 def build_specialists(
     model: BaseChatModel, resume: dict[str, Any], fallback: BaseChatModel | None = None
 ) -> dict[str, SpecialistRunner]:
-    """Runners for every specialist the Orchestrator requires."""
+    """Runners for every specialist the workflow uses, keyed by name."""
     return {
         agent.name: agent(model, resume, fallback) for agent in (GapAnalystAgent, RewriterAgent, ReviewerAgent)
     }

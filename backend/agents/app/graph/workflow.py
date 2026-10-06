@@ -12,6 +12,7 @@ ever runs inside the three specialist nodes. That keeps runs predictable, testab
 The `ask_user` node pauses the graph with `interrupt()`; with a checkpointer it resumes from where it stopped.
 """
 import logging
+from functools import partial
 from collections.abc import Mapping
 from typing import Any, Literal
 
@@ -21,7 +22,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import interrupt
 
-from app.agents.orchestrator import SpecialistResult
+from app.agents.result import SpecialistResult
 from app.agents.specialists import build_specialists
 from app.graph.state import WorkflowState
 from app.steps.ats import ats_score
@@ -96,6 +97,78 @@ def _summary(resume: Mapping[str, Any], state: Mapping[str, Any]) -> tuple[str, 
     return "\n".join(lines), after
 
 
+def update_from(result: "str | SpecialistResult") -> dict[str, Any]:
+    """The state fields a specialist wants written (none if it returned plain text)."""
+    return result.update if isinstance(result, SpecialistResult) else {}
+
+
+# nodes: each takes the state (plus the run's resume or specialists) and returns only the fields it changed
+def analyze_job(state: WorkflowState, resume: dict[str, Any]) -> dict[str, Any]:
+    """Node: structure the job description (if any) and score the original resume. No model call."""
+    text = state.get("job_description_text")
+    jd = extract_jd(text) if text else None
+    report = ats_score(resume, jd)
+    job = f"{len(jd['required_skills'])} required / {len(jd['preferred_skills'])} preferred skills" if jd else "none"
+    log.info("analyze_job: job description: %s; ATS baseline %s/100", job, report["score"])
+    return {"job_description": jd, "ats": report}
+
+
+def gap_analyst(state: WorkflowState, specialists: dict[str, Any]) -> dict[str, Any]:
+    """Node: the Gap Analyst compares the resume with the target job; writes `gap_analysis`."""
+    task = "Compare the resume with the target job and list the gaps."
+    log.info("gap_analyst: analysing")
+    return update_from(specialists["gap_analyst"](task, state))
+
+
+def rewriter(state: WorkflowState, specialists: dict[str, Any]) -> dict[str, Any]:
+    """Node: the Rewriter drafts claims (each with a source_ref) and lists facts it lacks; counts the round."""
+    round_number = state.get("rewrite_round", 0) + 1
+    log.info("rewriter: drafting (round %d of %d)", round_number, MAX_REWRITE_ROUNDS)
+    update = update_from(specialists["rewriter"](_rewrite_task(state), state))
+    log.info("rewriter: %d claim(s) in the draft, %d fact(s) needed from the user",
+             len(update.get("claims") or []), len(update.get("needs_user_input") or []))
+    return {**update, "rewrite_round": round_number}
+
+
+def ask_user(state: WorkflowState) -> dict[str, Any]:
+    """Node: pause the run to ask the user for the missing facts, then record their answer.
+
+    `interrupt()` stops the graph here. When the run is resumed, this node starts over and `interrupt()`
+    returns the answer, so nothing before it may have side effects.
+    """
+    question = "I need a few facts before I can finish:\n" + _bullets(state["needs_user_input"])
+    answer = interrupt({"type": "question", "question": question})
+    # Only reached after the user answers: on resume this node restarts and interrupt() returns the answer.
+    log.info("ask_user: answer received (%d characters)", len(str(answer)))
+    return {
+        "user_answers": [f"Q: {question}\nA: {answer}"],
+        "questions_asked": state.get("questions_asked", 0) + 1,
+        "needs_user_input": [],
+    }
+
+
+def reviewer(state: WorkflowState, specialists: dict[str, Any]) -> dict[str, Any]:
+    """Node: the Reviewer checks the draft. An empty draft, or claims with a bad source_ref, are rejected in code."""
+    if not state.get("claims"):
+        issue = "The rewriter produced no claims with a source_ref"
+        log.warning("reviewer: rejected, the draft has no claims (no model call)")
+        return {"review": {"approved": False, "issues": [issue]}}
+    update = update_from(specialists["reviewer"](_review_task(state), state))
+    review = update.get("review") or {}
+    log.info("reviewer: %s, %d issue(s)", "approved" if review.get("approved") else "REJECTED",
+             len(review.get("issues") or []))
+    return update
+
+
+def finalize(state: WorkflowState, resume: dict[str, Any]) -> dict[str, Any]:
+    """Node: write the closing summary (`output`) and the ATS score with the new claims. No model call."""
+    output, after = _summary(resume, state)
+    approved = (state.get("review") or {}).get("approved")
+    log.info("finalize: ATS %s -> %s, reviewer %s after %s draft(s)", (state.get("ats") or {}).get("score"),
+             after["score"], "approved" if approved else "did NOT approve", state.get("rewrite_round", 0))
+    return {"output": output, "ats_with_draft": after}
+
+
 def build_workflow(
     resume: dict[str, Any],
     model: BaseChatModel,
@@ -105,75 +178,18 @@ def build_workflow(
     """Build the workflow for one resume. `fallback` answers if `model` keeps failing."""
     specialists = build_specialists(model, resume, fallback)
 
-    def update_from(result: "str | SpecialistResult") -> dict[str, Any]:
-        """The state fields a specialist wants written (none if it returned plain text)."""
-        return result.update if isinstance(result, SpecialistResult) else {}
-
-    def analyze_job(state: WorkflowState) -> dict[str, Any]:
-        """Node: structure the job description (if any) and score the original resume. No model call."""
-        text = state.get("job_description_text")
-        jd = extract_jd(text) if text else None
-        report = ats_score(resume, jd)
-        job = f"{len(jd['required_skills'])} required / {len(jd['preferred_skills'])} preferred skills" if jd else "none"
-        log.info("analyze_job: job description: %s; ATS baseline %s/100", job, report["score"])
-        return {"job_description": jd, "ats": report}
-
-    def gap_analyst(state: WorkflowState) -> dict[str, Any]:
-        """Node: the Gap Analyst compares the resume with the target job; writes `gap_analysis`."""
-        task = "Compare the resume with the target job and list the gaps."
-        log.info("gap_analyst: analysing")
-        return update_from(specialists["gap_analyst"](task, state))
-
-    def rewriter(state: WorkflowState) -> dict[str, Any]:
-        """Node: the Rewriter drafts claims (each with a source_ref) and lists facts it lacks; counts the round."""
-        round_number = state.get("rewrite_round", 0) + 1
-        log.info("rewriter: drafting (round %d of %d)", round_number, MAX_REWRITE_ROUNDS)
-        update = update_from(specialists["rewriter"](_rewrite_task(state), state))
-        log.info("rewriter: %d claim(s) in the draft, %d fact(s) needed from the user",
-                 len(update.get("claims") or []), len(update.get("needs_user_input") or []))
-        return {**update, "rewrite_round": round_number}
-
-    def ask_user(state: WorkflowState) -> dict[str, Any]:
-        """Node: pause the run to ask the user for the missing facts, then record their answer.
-
-        `interrupt()` stops the graph here. When the run is resumed, this node starts over and `interrupt()`
-        returns the answer, so nothing before it may have side effects.
-        """
-        question = "I need a few facts before I can finish:\n" + _bullets(state["needs_user_input"])
-        answer = interrupt({"type": "question", "question": question})
-        # Only reached after the user answers: on resume this node restarts and interrupt() returns the answer.
-        log.info("ask_user: answer received (%d characters)", len(str(answer)))
-        return {
-            "user_answers": [f"Q: {question}\nA: {answer}"],
-            "questions_asked": state.get("questions_asked", 0) + 1,
-            "needs_user_input": [],
-        }
-
-    def reviewer(state: WorkflowState) -> dict[str, Any]:
-        """Node: the Reviewer checks the draft. An empty draft, or claims with a bad source_ref, are rejected in code."""
-        if not state.get("claims"):
-            issue = "The rewriter produced no claims with a source_ref"
-            log.warning("reviewer: rejected, the draft has no claims (no model call)")
-            return {"review": {"approved": False, "issues": [issue]}}
-        update = update_from(specialists["reviewer"](_review_task(state), state))
-        review = update.get("review") or {}
-        log.info("reviewer: %s, %d issue(s)", "approved" if review.get("approved") else "REJECTED",
-                 len(review.get("issues") or []))
-        return update
-
-    def finalize(state: WorkflowState) -> dict[str, Any]:
-        """Node: write the closing summary (`output`) and the ATS score with the new claims. No model call."""
-        output, after = _summary(resume, state)
-        approved = (state.get("review") or {}).get("approved")
-        log.info("finalize: ATS %s -> %s, reviewer %s after %s draft(s)", (state.get("ats") or {}).get("score"),
-                 after["score"], "approved" if approved else "did NOT approve", state.get("rewrite_round", 0))
-        return {"output": output, "ats_with_draft": after}
-
+    # define the state graph
     graph = StateGraph(WorkflowState)
-    for name, node in [("analyze_job", analyze_job), ("gap_analyst", gap_analyst), ("rewriter", rewriter),
-                       ("ask_user", ask_user), ("reviewer", reviewer), ("finalize", finalize)]:
-        graph.add_node(name, node)
 
+    # add nodes to the graph (the run's resume / specialists are bound here, so runs never share them)
+    graph.add_node("analyze_job", partial(analyze_job, resume=resume))
+    graph.add_node("gap_analyst", partial(gap_analyst, specialists=specialists))
+    graph.add_node("rewriter", partial(rewriter, specialists=specialists))
+    graph.add_node("ask_user", ask_user)
+    graph.add_node("reviewer", partial(reviewer, specialists=specialists))
+    graph.add_node("finalize", partial(finalize, resume=resume))
+
+    # add edges to the graph
     graph.add_edge(START, "analyze_job")
     graph.add_edge("analyze_job", "gap_analyst")
     graph.add_edge("gap_analyst", "rewriter")
@@ -181,4 +197,6 @@ def build_workflow(
     graph.add_edge("ask_user", "rewriter")
     graph.add_conditional_edges("reviewer", route_after_review, ["rewriter", "finalize"])
     graph.add_edge("finalize", END)
+
+    # compile the graph
     return graph.compile(checkpointer=checkpointer, name="resume_workflow")

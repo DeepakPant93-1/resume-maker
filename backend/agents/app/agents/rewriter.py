@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from app.agents.base import SpecialistAgent
-from app.agents.orchestrator import SpecialistResult
+from app.agents.result import SpecialistResult
 from app.steps.claims import merge_claims, parse_claims
 
 REWRITER_PROMPT = """\

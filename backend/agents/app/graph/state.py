@@ -1,26 +1,9 @@
-"""Shared state for one orchestrator run.
+"""Shared state for one run of the resume-tailoring workflow.
 
-The Orchestrator's message history is the base; the specialists add structured results next to it so
-later steps (and the API) read facts from state instead of re-parsing chat text. Everything here is
-JSON-serialisable so the checkpointer can persist it.
+Everything here is JSON-serialisable so the checkpointer can persist it.
 """
 import operator
-from typing import Annotated, Any, NotRequired, TypedDict
-
-from langchain.agents import AgentState
-
-
-class RunState(AgentState):
-    # Structured target job (see app.steps.jd) and the latest ATS report (see app.steps.ats).
-    job_description: NotRequired[dict[str, Any] | None]
-    ats: NotRequired[dict[str, Any]]
-    gap_analysis: NotRequired[str]
-    # Rewritten statements: {"text", "source_ref", "section"}. Replaced per section on each new draft.
-    claims: NotRequired[list[dict[str, Any]]]
-    # Facts the Rewriter could not source and needs from the user.
-    needs_user_input: NotRequired[list[str]]
-    # Latest Reviewer verdict: {"approved": bool, "issues": [str]}; None once a newer draft makes it stale.
-    review: NotRequired[dict[str, Any] | None]
+from typing import Annotated, Any, TypedDict
 
 
 class WorkflowState(TypedDict, total=False):

@@ -1,7 +1,7 @@
-"""Base class for the specialist agents the Orchestrator delegates to.
+"""Base class for the specialist agents the workflow runs.
 
 Each specialist is a single focused LLM call. The original resume is bound into its system
-prompt as data, so the Orchestrator only passes a task and never has to copy the resume.
+prompt as data, so the workflow only passes a task and never has to copy the resume.
 """
 import json
 import logging
@@ -12,7 +12,7 @@ from typing import Any
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from app.agents.orchestrator import SpecialistResult
+from app.agents.result import SpecialistResult
 
 log = logging.getLogger(__name__)
 

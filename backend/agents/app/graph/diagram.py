@@ -36,6 +36,6 @@ if __name__ == "__main__":
     args = sys.argv[1:]
     if "--png" in args:
         rest = args[args.index("--png") + 1:]
-        save_workflow_png(rest[0] if rest else "workflow.png")
+        save_workflow_png(rest[0] if rest and not rest[0].startswith("--") else "workflow.png")
     else:
         print_workflow_diagram("--ascii" in args)

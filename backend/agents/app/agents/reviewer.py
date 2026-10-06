@@ -7,7 +7,7 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agents.base import SpecialistAgent, _timed_invoke
-from app.agents.orchestrator import SpecialistResult
+from app.agents.result import SpecialistResult
 from app.steps.claims import validate_claims
 
 log = logging.getLogger(__name__)

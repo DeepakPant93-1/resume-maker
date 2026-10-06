@@ -1,4 +1,5 @@
 {
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/agents/.venv/bin/python",
   "files.exclude": {
     "**/__pycache__": true,
     "**/*.pyc": true,

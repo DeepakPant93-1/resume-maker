@@ -51,25 +51,22 @@ Two backend services (the Spring Boot API is a scaffold only; the Python agent s
 - **Java Spring Boot API** (`backend/resumemaker/`): CRUD, MongoDB, sessions/chat, SSE relay to the UI.
 - **Python agent service** (`backend/agents/`, in progress): FastAPI + **LangGraph**, all agents in one process.
 
-Agents (tool-using, looping): **Orchestrator**, **Gap Analyst**, **Rewriter**, **Reviewer**. Deterministic steps (not agents): parse resume, extract JD, ATS score, export. Agents share a LangGraph `RunState`; `ask_user` uses LangGraph `interrupt()` with a checkpointer. Every rewritten claim must carry a `source_ref` to the original resume, and the Reviewer rejects claims without one.
+Agents (tool-using, looping): **Gap Analyst**, **Rewriter**, **Reviewer**. Deterministic steps (not agents): parse resume, extract JD, ATS score, export. The code fixes the order of the steps in a LangGraph `StateGraph` (`app/graph/workflow.py`), and the agents share a `WorkflowState`; `ask_user` uses LangGraph `interrupt()` with a checkpointer. Every rewritten claim must carry a `source_ref` to the original resume, and the Reviewer rejects claims without one.
 
 ```
-                    ┌───────────────────────────────────────────────┐
-   user chat ─────▶ │                  ORCHESTRATOR                 │ ◀── user clarifications (ask_user)
-                    │     (plans, delegates, decides when done)     │
-                    └───────┬───────────────┬───────────────┬───────┘
-                            │               │               │           delegates as tools
-                            ▼               ▼               ▼        
-                       Gap Analyst      Rewriter        Reviewer     
-                         (agent)         (agent)         (agent)     
+  START -> analyze_job -> gap_analyst -> rewriter --(facts missing)--> ask_user --+
+                                           ^   \--(otherwise)--> reviewer         |
+                                           |                         |            |
+                                           +----(rejected, < 3 rounds)           |
+                                           +<-------------------------------------+
+                                                  (approved or out of rounds) -> finalize -> END
 
+  Deterministic steps (plain code, no model): analyze_job (extract_jd + ats_score), finalize
+  Agents (model calls): gap_analyst, rewriter, reviewer
   (Research agent: deferred, not part of the current agents)
-
-  Deterministic steps the agents call as tools:
-  parse_resume · extract_jd · ats_score · export_resume
 ```
 
-Code lives in `backend/agents/app/` (`agents/`, `tools/`, `steps/`, `graph/`, `schemas/`, `core/`, `api/`). The Orchestrator is implemented in `backend/agents/app/agents/orchestrator.py`; the other agents are not yet built.
+Code lives in `backend/agents/app/` (`agents/`, `steps/`, `graph/`, `schemas/`, `core/`, `api/`). The Gap Analyst, Rewriter and Reviewer are implemented in `backend/agents/app/agents/`, and the workflow that connects them is `backend/agents/app/graph/workflow.py`. There is no separate Orchestrator agent: the graph's routing functions decide the next step. `python -m app.graph.diagram` (run from `backend/agents/`) prints the workflow diagram.
 
 ### Deferred / future work
 - **Research agent**: web search on the company and role to align tone and keywords. Deferred; it would be the only agent with internet access.

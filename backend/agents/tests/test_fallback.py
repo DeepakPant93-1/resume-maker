@@ -2,10 +2,9 @@ from typing import Any
 
 import pytest
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
-from app.agents.orchestrator import SPECIALISTS, build_orchestrator
 from app.agents.specialists import build_specialists
 from app.core.config import Settings
 from app.core.llm import build_fallback_model
@@ -77,22 +76,3 @@ def test_specialist_uses_fallback_when_primary_is_overloaded():
 
     assert runners["reviewer"]("check", {}).text == "FROM FALLBACK"
     assert primary.calls == 1
-
-
-def test_orchestrator_uses_fallback_when_primary_is_overloaded():
-    primary, fallback = OverloadedModel(), HealthyModel(reply="All done")
-    runners = {n: (lambda task, state: "ok") for n in SPECIALISTS}
-    graph = build_orchestrator(primary, runners, fallback=fallback)
-
-    result = graph.invoke({"messages": [HumanMessage("review my resume")]})
-
-    assert result["messages"][-1].content == "All done"
-    assert primary.calls == 1
-
-
-def test_without_fallback_the_error_still_surfaces():
-    runners = {n: (lambda task, state: "ok") for n in SPECIALISTS}
-    graph = build_orchestrator(OverloadedModel(), runners)
-
-    with pytest.raises(RuntimeError, match="503"):
-        graph.invoke({"messages": [HumanMessage("review my resume")]})

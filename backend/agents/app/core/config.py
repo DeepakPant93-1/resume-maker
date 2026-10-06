@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     provider: Optional[Literal["anthropic", "gemini"]] = None
     # Model id for the chosen provider; defaults per provider (see DEFAULT_MODELS).
     orchestrator_model: Optional[str] = None
-    # Upper bound on graph steps (model call + tool call each count) for one orchestrator run.
+    # Upper bound on graph steps (model call + tool call each count) for one workflow run.
     orchestrator_max_steps: int = 25
     # Per-request timeout and retry count for LLM calls, so a stalled call fails instead of hanging.
     llm_timeout_seconds: float = 90
