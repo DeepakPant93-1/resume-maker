@@ -3,7 +3,7 @@ import streamlit as st
 
 from components.resume_preview import TEMPLATES, resume_html, template_thumb
 from styles.theme import card, css, donut, html, page_header
-from utils.api_client import ApiError, to_editor_data, upload_resume
+from utils.api_client import ApiError, to_editor_data, upload_resume, write_summary
 
 STEPS = ["Personal info", "Experience", "Education", "Skills", "Template", "Preview"]
 SUGGESTED_SKILLS = ["Redis", "CI/CD", "Terraform", "REST APIs", "JUnit"]
@@ -140,7 +140,13 @@ def step_personal(r):
         html('<div style="font-size:0.875rem;margin-top:0.4rem">Professional summary</div>')
     with ai:
         if st.button("✦ Write with AI", key="chip_write_ai", use_container_width=True):
-            st.toast("Connect your AI backend to generate a summary.", icon=":material/auto_awesome:")
+            try:
+                with st.spinner("Writing your summary…"):
+                    new_summary = write_summary(_editor_data(r), p["summary"])
+                p["summary"] = new_summary
+                st.session_state.pop("w_summary", None)  # so the text box below shows the new text
+            except ApiError as error:
+                st.toast(str(error), icon=":material/error:")
     p["summary"] = st.text_area("Professional summary", p["summary"], height=110, label_visibility="collapsed",
                                 placeholder="Describe your background in 2–3 sentences…", key="w_summary")
     _nav("Cancel", None, "Next: Experience", 2, can_next=bool(p["full_name"].strip()))
@@ -270,10 +276,9 @@ def _preview(r, placeholders=True):
     )
 
 
-def _save_to_editor(r):
-    """Copy the wizard result into the editor + resume list."""
-    st.session_state.resume_id = None  # a new resume: Save must create it, not overwrite the previous one
-    st.session_state.resume_data = {
+def _editor_data(r):
+    """The wizard's resume in the shape the editor and the backend use."""
+    return {
         "profile": dict(r["personal_info"]),
         "experience": [dict(j) for j in r["experience"] if j["job_title"] or j["company"]],
         "education": [dict(e) for e in r["education"] if e["degree"] or e["university"]],
@@ -281,6 +286,12 @@ def _save_to_editor(r):
         "projects": [],
         "certifications": [{"name": r["certifications"], "issuer": ""}] if r["certifications"] else [],
     }
+
+
+def _save_to_editor(r):
+    """Copy the wizard result into the editor + resume list."""
+    st.session_state.resume_id = None  # a new resume: Save must create it, not overwrite the previous one
+    st.session_state.resume_data = _editor_data(r)
 
 
 def step_preview(r):

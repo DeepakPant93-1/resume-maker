@@ -7,6 +7,7 @@ from utils import auth
 
 API_URL = os.environ.get("RESUMEMAKER_API_URL", "http://localhost:8080")
 UPLOAD_TIMEOUT_SECONDS = 60
+SUMMARY_TIMEOUT_SECONDS = 60  # one model call
 TIMEOUT_SECONDS = 15
 
 # The sections the editor keeps in session state, in the shape the backend expects.
@@ -97,6 +98,14 @@ def check_ats(data, job_description=None):
     """Score the editor's resume for ATS (saved or not). Returns {score, against_job, components, suggestions}."""
     payload = {section: data.get(section) for section in RESUME_SECTIONS}
     return _call("POST", "/api/ats", json={"resume": payload, "job_description": job_description or None})
+
+
+def write_summary(data, summary=None):
+    """Ask the AI to write the professional summary from the resume (or to improve `summary` if given). Returns the text."""
+    payload = {section: data.get(section) for section in RESUME_SECTIONS}
+    reply = _call("POST", "/api/summary", timeout=SUMMARY_TIMEOUT_SECONDS,
+                  json={"resume": payload, "summary": summary or None})
+    return reply["summary"]
 
 
 def start_run(resume_id, job_description):

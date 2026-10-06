@@ -5,7 +5,7 @@ from typing import Any
 
 from app.agents.base import SpecialistAgent
 from app.agents.result import SpecialistResult
-from app.steps.claims import merge_claims, parse_claims
+from app.steps.claims import ClaimParser
 
 REWRITER_PROMPT = """\
 You are the Rewriter on a resume-tailoring team.
@@ -22,12 +22,17 @@ class RewriterAgent(SpecialistAgent):
     """Rewrites resume sections; every claim carries a source_ref."""
 
     name = "rewriter"
+    tier = "rewrite"
     prompt = REWRITER_PROMPT
 
+    def __init__(self, *args: Any, parser: ClaimParser | None = None, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.parser = parser or ClaimParser()
+
     def handle(self, text: str, state: Mapping[str, Any]) -> SpecialistResult:
-        claims, needs_input = parse_claims(text)
+        claims, needs_input = self.parser.parse(text)
         return SpecialistResult(text, {
-            "claims": merge_claims(state.get("claims") or [], claims),
+            "claims": self.parser.merge(state.get("claims") or [], claims),
             "needs_user_input": needs_input,
             "review": None,  # any earlier verdict was for an older draft
         })

@@ -5,9 +5,9 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
-from app.agents.specialists import build_specialists
+from app.agents.specialists import SpecialistTeam
 from app.core.config import Settings
-from app.core.llm import build_fallback_model
+from app.core.llm import ModelFactory
 
 
 class OverloadedModel(BaseChatModel):
@@ -52,16 +52,16 @@ def _settings(**values) -> Settings:
 
 
 def test_no_fallback_when_only_one_provider_key_is_set():
-    assert build_fallback_model(_settings(GOOGLE_API_KEY="g-key")) is None
+    assert ModelFactory(_settings(GOOGLE_API_KEY="g-key")).build_fallback() is None
 
 
 def test_fallback_is_the_other_provider_when_its_key_is_set():
-    fallback = build_fallback_model(_settings(GOOGLE_API_KEY="g-key", ANTHROPIC_API_KEY="a-key", provider="gemini"))
+    fallback = ModelFactory(_settings(GOOGLE_API_KEY="g-key", ANTHROPIC_API_KEY="a-key", provider="gemini")).build_fallback()
     assert type(fallback).__name__ == "ChatAnthropic"
 
 
 def test_fallback_model_setting_uses_same_provider():
-    fallback = build_fallback_model(_settings(GOOGLE_API_KEY="g-key", fallback_model="gemini-2.5-flash"))
+    fallback = ModelFactory(_settings(GOOGLE_API_KEY="g-key", fallback_model="gemini-2.5-flash")).build_fallback()
     assert type(fallback).__name__ == "ChatGoogleGenerativeAI"
     assert fallback.model.endswith("gemini-2.5-flash")
 
@@ -72,7 +72,7 @@ def test_retries_default_rides_out_a_short_overload():
 
 def test_specialist_uses_fallback_when_primary_is_overloaded():
     primary, fallback = OverloadedModel(), HealthyModel()
-    runners = build_specialists(primary, {"id": "r1"}, fallback)
+    runners = SpecialistTeam(primary, {"id": "r1"}, fallback)
 
     assert runners["reviewer"]("check", {}).text == "FROM FALLBACK"
     assert primary.calls == 1

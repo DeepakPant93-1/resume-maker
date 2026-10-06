@@ -7,8 +7,10 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
-from app.graph.workflow import (MAX_QUESTION_ROUNDS, MAX_REWRITE_ROUNDS, build_workflow, route_after_review,
-                                route_after_rewrite)
+from app.graph.workflow import ResumeWorkflow
+
+MAX_REWRITE_ROUNDS = ResumeWorkflow.MAX_REWRITE_ROUNDS
+MAX_QUESTION_ROUNDS = ResumeWorkflow.MAX_QUESTION_ROUNDS
 
 RESUME = {
     "profile": {"full_name": "A", "email": "a@x.io", "phone": "1", "job_title": "Engineer",
@@ -46,7 +48,7 @@ class Scripted(BaseChatModel):
 
 def _run(script: list[str], state: dict[str, Any] | None = None, checkpointer=None, thread="t"):
     model = Scripted(script=script, seen=[])
-    graph = build_workflow(RESUME, model, checkpointer=checkpointer)
+    graph = ResumeWorkflow(RESUME, model, checkpointer=checkpointer).build()
     config = {"configurable": {"thread_id": thread}}
     return model, graph, graph.invoke(state or {}, config)
 
@@ -95,7 +97,7 @@ def test_missing_facts_pause_for_the_user_and_resume_from_the_checkpoint():
 
     # A brand-new model and graph (as after a restart): only the checkpoint carries the earlier work over.
     model = Scripted(script=[GOOD_DRAFT, "APPROVED"], seen=[])
-    resumed = build_workflow(RESUME, model, checkpointer=saver).invoke(
+    resumed = ResumeWorkflow(RESUME, model, checkpointer=saver).build().invoke(
         Command(resume="Two"), {"configurable": {"thread_id": "t"}})
 
     assert model.calls == 2  # rewriter and reviewer; the gap analyst did not run again
@@ -128,7 +130,7 @@ def test_without_a_job_description_the_workflow_still_runs():
     ({}, "reviewer"),
 ])
 def test_route_after_rewrite(state, expected):
-    assert route_after_rewrite(state) == expected
+    assert ResumeWorkflow(RESUME, Scripted(script=[], seen=[])).after_rewrite(state) == expected
 
 
 @pytest.mark.parametrize("state, expected", [
@@ -138,11 +140,11 @@ def test_route_after_rewrite(state, expected):
     ({"review": None, "rewrite_round": 1}, "rewriter"),
 ])
 def test_route_after_review(state, expected):
-    assert route_after_review(state) == expected
+    assert ResumeWorkflow(RESUME, Scripted(script=[], seen=[])).after_review(state) == expected
 
 
 def test_graph_has_the_expected_nodes_and_edges():
-    graph = build_workflow(RESUME, Scripted(script=[], seen=[])).get_graph()
+    graph = ResumeWorkflow(RESUME, Scripted(script=[], seen=[])).build().get_graph()
 
     assert set(graph.nodes) == {"__start__", "analyze_job", "gap_analyst", "rewriter", "ask_user", "reviewer",
                                 "finalize", "__end__"}

@@ -9,33 +9,31 @@ import sys
 
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
-from app.graph.workflow import build_workflow
+from app.graph.workflow import ResumeWorkflow
 
 
-def _graph():
-    return build_workflow({}, FakeListChatModel(responses=[""])).get_graph()
+class WorkflowDiagram:
+    """Draws the workflow graph. No model is called: the graph is built with a fake one."""
 
+    def __init__(self) -> None:
+        self.graph = ResumeWorkflow({}, FakeListChatModel(responses=[""])).build().get_graph()
 
-def workflow_diagram(ascii_art: bool = False) -> str:
-    """The workflow graph as Mermaid text, or as a terminal drawing. No model is called."""
-    graph = _graph()
-    return graph.draw_ascii() if ascii_art else graph.draw_mermaid()
+    def text(self, ascii_art: bool = False) -> str:
+        """The graph as Mermaid text, or as a terminal drawing."""
+        return self.graph.draw_ascii() if ascii_art else self.graph.draw_mermaid()
 
+    def save_png(self, path: str = "workflow.png") -> None:
+        """Render the graph to a PNG. The Mermaid text is sent to mermaid.ink, so this needs internet."""
+        with open(path, "wb") as f:
+            f.write(self.graph.draw_mermaid_png())
 
-def save_workflow_png(path: str = "workflow.png") -> None:
-    """Render the workflow to a PNG. The Mermaid text is sent to mermaid.ink, so this needs internet."""
-    with open(path, "wb") as f:
-        f.write(_graph().draw_mermaid_png())
-
-
-def print_workflow_diagram(ascii_art: bool = False) -> None:
-    print(workflow_diagram(ascii_art))
+    def main(self, args: list[str]) -> None:
+        if "--png" in args:
+            rest = args[args.index("--png") + 1:]
+            self.save_png(rest[0] if rest and not rest[0].startswith("--") else "workflow.png")
+        else:
+            print(self.text("--ascii" in args))
 
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
-    if "--png" in args:
-        rest = args[args.index("--png") + 1:]
-        save_workflow_png(rest[0] if rest and not rest[0].startswith("--") else "workflow.png")
-    else:
-        print_workflow_diagram("--ascii" in args)
+    WorkflowDiagram().main(sys.argv[1:])

@@ -22,8 +22,11 @@ class Settings(BaseSettings):
 
     # "anthropic" or "gemini"; auto-detected from the available key when unset.
     provider: Optional[Literal["anthropic", "gemini"]] = None
-    # Model id for the chosen provider; defaults per provider (see DEFAULT_MODELS).
+    # Model id for the chosen provider; defaults per provider (see DEFAULT_MODELS). Used by the Gap Analyst and Reviewer.
     orchestrator_model: Optional[str] = None
+    # Optional lighter/cheaper models for simpler tasks. Unset means the model above is used.
+    summary_model: Optional[str] = None  # the "Write with AI" summary
+    rewrite_model: Optional[str] = None  # the Rewriter
     # Upper bound on graph steps (model call + tool call each count) for one workflow run.
     orchestrator_max_steps: int = 25
     # Per-request timeout and retry count for LLM calls, so a stalled call fails instead of hanging.

@@ -34,30 +34,32 @@ SKILLS: dict[str, tuple[str, ...]] = {
     "grafana": (), "selenium": (), "junit": (), "pytest": (), "maven": (), "gradle": (),
 }
 
-# Short words that are also ordinary English: only match with this exact capitalisation.
-_CASE_SENSITIVE = {"Go"}
 
+class KeywordMatcher:
+    """Finds the skills from a vocabulary in free text. Compiles its patterns once, then `find` is cheap."""
 
-def _compile(alias: str) -> re.Pattern[str]:
-    # Not glued to other word characters, so "java" does not match inside "javascript" or "mysql" inside "sql".
-    pattern = r"(?<![\w+#.])" + re.escape(alias) + r"(?![\w+#])"
-    return re.compile(pattern, 0 if alias in _CASE_SENSITIVE else re.IGNORECASE)
+    # Short words that are also ordinary English: only match with this exact capitalisation.
+    CASE_SENSITIVE = {"Go"}
+    # Canonical names that are also ordinary words: matched only through their aliases.
+    ALIAS_ONLY = {"go", "spring"}  # "spring" alone would also match inside "Spring Boot"
 
+    def __init__(self, skills: dict[str, tuple[str, ...]] = SKILLS) -> None:
+        self._patterns: dict[str, list[re.Pattern[str]]] = {
+            canonical: [self._compile(name) for name in (aliases if canonical in self.ALIAS_ONLY else (canonical, *aliases))]
+            for canonical, aliases in skills.items()
+        }
 
-# Canonical names that are also ordinary words: matched only through their aliases.
-_ALIAS_ONLY = {"go", "spring"}  # "spring" alone would also match inside "Spring Boot"
+    @classmethod
+    def _compile(cls, alias: str) -> re.Pattern[str]:
+        # Not glued to other word characters, so "java" does not match inside "javascript" or "mysql" inside "sql".
+        pattern = r"(?<![\w+#.])" + re.escape(alias) + r"(?![\w+#])"
+        return re.compile(pattern, 0 if alias in cls.CASE_SENSITIVE else re.IGNORECASE)
 
-_PATTERNS: dict[str, list[re.Pattern[str]]] = {
-    canonical: [_compile(name) for name in (aliases if canonical in _ALIAS_ONLY else (canonical, *aliases))]
-    for canonical, aliases in SKILLS.items()
-}
-
-
-def find_skills(text: str) -> list[str]:
-    """Canonical skills mentioned in `text`, in order of first appearance."""
-    hits: list[tuple[int, str]] = []
-    for canonical, patterns in _PATTERNS.items():
-        positions = [m.start() for p in patterns if (m := p.search(text))]
-        if positions:
-            hits.append((min(positions), canonical))
-    return [canonical for _, canonical in sorted(hits)]
+    def find(self, text: str) -> list[str]:
+        """Canonical skills mentioned in `text`, in order of first appearance."""
+        hits: list[tuple[int, str]] = []
+        for canonical, patterns in self._patterns.items():
+            positions = [m.start() for p in patterns if (m := p.search(text))]
+            if positions:
+                hits.append((min(positions), canonical))
+        return [canonical for _, canonical in sorted(hits)]

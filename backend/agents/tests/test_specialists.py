@@ -1,10 +1,10 @@
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 
-from app.agents.base import _job_block
-from app.agents.specialists import PROMPTS, build_specialists
-from app.steps.ats import ats_score
-from app.steps.jd import extract_jd
+from app.agents.base import SpecialistAgent
+from app.agents.specialists import PROMPTS, SpecialistTeam
+from app.steps.ats import AtsScorer
+from app.steps.jd import JobDescriptionExtractor
 
 
 class RecordingModel(GenericFakeChatModel):
@@ -29,17 +29,17 @@ def test_prompts_cover_every_specialist():
 
 
 def test_specialists_receive_the_structured_job_and_missing_keywords():
-    jd = extract_jd(JD_TEXT)
-    block = _job_block({"job_description": jd, "ats": ats_score(RESUME, jd)})
+    jd = JobDescriptionExtractor().extract(JD_TEXT)
+    block = SpecialistAgent._job_block({"job_description": jd, "ats": AtsScorer().score(RESUME, jd)})
 
     assert "Required skills: python, docker, kafka" in block
     assert "Keywords the resume lacks (add only if the resume supports them): kafka" in block
-    assert _job_block({}) == ""
+    assert SpecialistAgent._job_block({}) == ""
 
 
 def test_runner_binds_resume_and_returns_reply_text():
     model = RecordingModel(messages=iter([AIMessage(content="APPROVED")]), seen=[])
-    runners = build_specialists(model, {"id": "r1", "profile": {"name": "Arjun"}})
+    runners = SpecialistTeam(model, {"id": "r1", "profile": {"name": "Arjun"}})
 
     assert runners["reviewer"]("check the draft", {}).text == "APPROVED"
 

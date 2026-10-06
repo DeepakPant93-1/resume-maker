@@ -2,14 +2,13 @@
 import logging
 from typing import Any
 
-from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from app.steps.ats import AtsReport, ats_score
-from app.steps.jd import extract_jd
+from app.api.base import BaseRoutes
+from app.steps.ats import AtsReport, AtsScorer
+from app.steps.jd import JobDescriptionExtractor
 
 log = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/ats", tags=["ats"])
 
 
 class AtsRequest(BaseModel):
@@ -17,10 +16,26 @@ class AtsRequest(BaseModel):
     job_description: str | None = Field(default=None, description="Pasted job posting; scores keyword match when given")
 
 
-@router.post("")
-def score_resume(request: AtsRequest) -> AtsReport:
-    text = (request.job_description or "").strip()
-    report = ats_score(request.resume, extract_jd(text) if text else None)
-    log.info("POST /api/ats: resume %s, job description: %s -> %s/100", request.resume.get("id"),
-             f"{len(text)} characters" if text else "none", report["score"])
-    return report
+class AtsRoutes(BaseRoutes):
+    """The endpoints under /api/ats."""
+
+    prefix = "/api/ats"
+    tag = "ats"
+
+    def __init__(self) -> None:
+        self.extractor = JobDescriptionExtractor()
+        self.scorer = AtsScorer()
+        super().__init__()
+
+    def register(self) -> None:
+        self.router.add_api_route("", self.score_resume, methods=["POST"])
+
+    def score_resume(self, request: AtsRequest) -> AtsReport:
+        text = (request.job_description or "").strip()
+        report = self.scorer.score(request.resume, self.extractor.extract(text) if text else None)
+        log.info("POST /api/ats: resume %s, job description: %s -> %s/100", request.resume.get("id"),
+                 f"{len(text)} characters" if text else "none", report["score"])
+        return report
+
+
+router = AtsRoutes().router

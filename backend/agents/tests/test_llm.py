@@ -1,6 +1,8 @@
 from langchain_core.messages import AIMessage
 
-from app.core.llm import message_text
+from app.core.llm import ModelFactory
+
+message_text = ModelFactory.message_text
 
 
 def test_message_text_handles_string_content():

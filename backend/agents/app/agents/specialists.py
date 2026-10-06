@@ -16,10 +16,23 @@ PROMPTS: Mapping[str, str] = {
 }
 
 
-def build_specialists(
-    model: BaseChatModel, resume: dict[str, Any], fallback: BaseChatModel | None = None
-) -> dict[str, SpecialistRunner]:
-    """Runners for every specialist the workflow uses, keyed by name."""
-    return {
-        agent.name: agent(model, resume, fallback) for agent in (GapAnalystAgent, RewriterAgent, ReviewerAgent)
-    }
+class SpecialistTeam:
+    """The three specialist agents for one resume, looked up by name: `team["rewriter"](task, state)`."""
+
+    AGENTS = (GapAnalystAgent, RewriterAgent, ReviewerAgent)
+
+    def __init__(
+        self,
+        model: BaseChatModel,
+        resume: dict[str, Any],
+        fallback: BaseChatModel | None = None,
+        tier_models: Mapping[str, BaseChatModel] | None = None,
+    ) -> None:
+        """`tier_models` gives an agent its own model by tier (e.g. "rewrite"); the others use `model`."""
+        tier_models = tier_models or {}
+        self.runners: dict[str, SpecialistRunner] = {
+            agent.name: agent(tier_models.get(agent.tier, model), resume, fallback) for agent in self.AGENTS
+        }
+
+    def __getitem__(self, name: str) -> SpecialistRunner:
+        return self.runners[name]

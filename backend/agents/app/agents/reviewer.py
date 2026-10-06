@@ -6,9 +6,9 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from app.agents.base import SpecialistAgent, _timed_invoke
+from app.agents.base import SpecialistAgent
 from app.agents.result import SpecialistResult
-from app.steps.claims import validate_claims
+from app.steps.claims import ClaimValidator
 
 log = logging.getLogger(__name__)
 
@@ -28,13 +28,17 @@ class ReviewerAgent(SpecialistAgent):
     name = "reviewer"
     prompt = REVIEWER_PROMPT
 
+    def __init__(self, *args: Any, validator: ClaimValidator | None = None, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.validator = validator or ClaimValidator(self.resume)
+
     def __call__(self, task: str, state: Mapping[str, Any]) -> SpecialistResult:
-        issues = validate_claims(state.get("claims") or [], self.resume)
+        issues = self.validator.validate(state.get("claims") or [])
         if issues:
             log.warning("reviewer: %d claim(s) failed the source_ref check, rejected without a model call", len(issues))
             text = "REJECTED\n" + "\n".join(f"- {issue}" for issue in issues)
             return SpecialistResult(text, {"review": {"approved": False, "issues": issues}})
-        text = _timed_invoke(self.name, self._runnable, [SystemMessage(self._system), HumanMessage(task)])
+        text = self._ask([SystemMessage(self._system), HumanMessage(task)])
         approved = text.lstrip().upper().startswith("APPROVED")
         issues = [line.lstrip("-•* ").strip() for line in text.splitlines()[1:] if line.strip()]
         return SpecialistResult(text, {"review": {"approved": approved, "issues": issues}})

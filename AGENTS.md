@@ -61,7 +61,7 @@ Agents (tool-using, looping): **Gap Analyst**, **Rewriter**, **Reviewer**. Deter
                                            +<-------------------------------------+
                                                   (approved or out of rounds) -> finalize -> END
 
-  Deterministic steps (plain code, no model): analyze_job (extract_jd + ats_score), finalize
+  Deterministic steps (plain code, no model): analyze_job (JobDescriptionExtractor + AtsScorer), finalize
   Agents (model calls): gap_analyst, rewriter, reviewer
   (Research agent: deferred, not part of the current agents)
 ```

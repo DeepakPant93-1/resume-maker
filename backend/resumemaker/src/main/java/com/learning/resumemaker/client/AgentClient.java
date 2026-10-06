@@ -13,6 +13,8 @@ import com.learning.resumemaker.model.AnswerRequest;
 import com.learning.resumemaker.model.AtsReport;
 import com.learning.resumemaker.model.AtsRequest;
 import com.learning.resumemaker.model.RunStarted;
+import com.learning.resumemaker.model.SummaryRequest;
+import com.learning.resumemaker.model.SummaryResponse;
 
 /** Client for the Python agent service (backend/agents). */
 @FeignClient(name = "agent-service", url = "${agent.service.url}")
@@ -31,4 +33,8 @@ public interface AgentClient {
 	/** Instant, model-free ATS score of a resume, optionally against a job description. */
 	@PostMapping("/api/ats")
 	AtsReport atsScore(@RequestBody AtsRequest request);
+
+	/** One model call: a new professional summary for the resume, or an improved version of the one given. */
+	@PostMapping("/api/summary")
+	SummaryResponse writeSummary(@RequestBody SummaryRequest request);
 }

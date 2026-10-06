@@ -7,8 +7,9 @@ from fastapi import FastAPI
 from app.api import runs
 from app.api.ats import router as ats_router
 from app.api.runs import router as runs_router
+from app.api.summary import router as summary_router
 from app.core.config import get_settings
-from app.core.llm import fallback_model_name, primary_model_name
+from app.core.llm import ModelFactory
 from app.core.logging_config import setup_logging
 
 setup_logging(get_settings().log_level)
@@ -33,8 +34,9 @@ async def lifespan(app: FastAPI):
 def _models(settings) -> str:
     """Provider, main model and fallback model, for the startup line."""
     try:
-        return (f"provider={settings.resolved_provider()}, model={primary_model_name(settings)}, "
-                f"fallback={fallback_model_name(settings) or 'none'}")
+        factory = ModelFactory(settings)
+        return (f"provider={settings.resolved_provider()}, model={factory.primary_name()}, "
+                f"fallback={factory.fallback_name() or 'none'}")
     except ValueError:
         return "provider=NOT CONFIGURED (set GOOGLE_API_KEY or ANTHROPIC_API_KEY)"
 
@@ -42,6 +44,7 @@ def _models(settings) -> str:
 app = FastAPI(title="Resume Maker Agent Service", lifespan=lifespan)
 app.include_router(runs_router)
 app.include_router(ats_router)
+app.include_router(summary_router)
 
 
 @app.get("/health")

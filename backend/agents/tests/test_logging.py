@@ -4,7 +4,7 @@ import logging
 import pytest
 
 from app.core.logging_config import DATE_FORMAT, LOG_FORMAT, RunFilter, run_context
-from app.graph.workflow import build_workflow
+from app.graph.workflow import ResumeWorkflow
 from tests.test_workflow import GOOD_DRAFT, RESUME, Scripted
 
 
@@ -26,7 +26,7 @@ def log_output():
 
 def test_a_run_logs_each_step_in_order_tagged_with_its_run_id(log_output):
     model = Scripted(script=["Gap: kafka", GOOD_DRAFT, "APPROVED"], seen=[])
-    graph = build_workflow(RESUME, model)
+    graph = ResumeWorkflow(RESUME, model).build()
 
     with run_context("abcdef1234567890"):
         graph.invoke({"job_description_text": "Requirements\n- Python and Kafka"})
@@ -45,7 +45,7 @@ def test_logs_describe_the_work_without_leaking_resume_or_job_text(log_output):
     model = Scripted(script=["Gap: kafka", GOOD_DRAFT, "APPROVED"], seen=[])
 
     with run_context("r1"):
-        build_workflow(RESUME, model).invoke({"job_description_text": "Requirements\n- Python and Kafka"})
+        ResumeWorkflow(RESUME, model).build().invoke({"job_description_text": "Requirements\n- Python and Kafka"})
 
     text = log_output.getvalue()
     assert "ATS baseline" in text and "model replied in" in text

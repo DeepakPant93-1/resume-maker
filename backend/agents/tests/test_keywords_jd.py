@@ -1,5 +1,8 @@
-from app.steps.jd import extract_jd
-from app.steps.keywords import find_skills
+from app.steps.jd import JobDescriptionExtractor
+from app.steps.keywords import KeywordMatcher
+
+extract_jd = JobDescriptionExtractor().extract
+find_skills = KeywordMatcher().find
 
 
 def test_skills_respect_word_boundaries_and_aliases():

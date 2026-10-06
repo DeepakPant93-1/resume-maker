@@ -1,4 +1,7 @@
-from app.steps.claims import merge_claims, parse_claims, resolve_source_ref, validate_claims
+from app.steps.claims import ClaimParser, ClaimValidator
+
+parse_claims = ClaimParser().parse
+merge_claims = ClaimParser().merge
 
 RESUME = {
     "profile": {"summary": "Backend engineer"},
@@ -8,14 +11,14 @@ RESUME = {
 
 
 def test_resolves_nested_paths_and_indexes():
-    assert resolve_source_ref(RESUME, "profile.summary") == "Backend engineer"
-    assert resolve_source_ref(RESUME, "experience[0].company") == "Coredge"
-    assert resolve_source_ref(RESUME, "skills.languages[1]") == "Go"
+    assert ClaimValidator(RESUME).resolve("profile.summary") == "Backend engineer"
+    assert ClaimValidator(RESUME).resolve("experience[0].company") == "Coredge"
+    assert ClaimValidator(RESUME).resolve("skills.languages[1]") == "Go"
 
 
 def test_missing_empty_or_malformed_paths_resolve_to_none():
     for ref in ("experience[5].company", "profile.nope", "skills.tools", "experience[0", "", "..x", "a b"):
-        assert resolve_source_ref(RESUME, ref) is None, ref
+        assert ClaimValidator(RESUME).resolve(ref) is None, ref
 
 
 def test_validate_claims_flags_missing_and_nonexistent_refs():
@@ -24,7 +27,7 @@ def test_validate_claims_flags_missing_and_nonexistent_refs():
         {"text": "No ref", "source_ref": None, "section": None},
         {"text": "Bad ref", "source_ref": "experience[3].achievements", "section": None},
     ]
-    issues = validate_claims(claims, RESUME)
+    issues = ClaimValidator(RESUME).validate(claims)
     assert len(issues) == 2
     assert "Claim 2" in issues[0] and "no source_ref" in issues[0]
     assert "Claim 3" in issues[1] and "does not exist" in issues[1]

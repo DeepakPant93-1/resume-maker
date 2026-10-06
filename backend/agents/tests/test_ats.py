@@ -1,5 +1,9 @@
-from app.steps.ats import ats_score, resume_bullets
-from app.steps.jd import extract_jd
+from app.steps.ats import AtsScorer
+from app.steps.jd import JobDescriptionExtractor
+
+ats_score = AtsScorer().score
+resume_bullets = AtsScorer.resume_bullets
+extract_jd = JobDescriptionExtractor().extract
 
 RESUME = {
     "profile": {"full_name": "A", "email": "a@x.io", "phone": "+91 99999 99999", "job_title": "Backend Engineer",
