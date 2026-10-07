@@ -1,8 +1,11 @@
 """My Resumes Page - Resume Editor (Figma: resume-editor + ats-check)"""
+import html as _html
+
 import streamlit as st
 
 from components.resume_preview import resume_html
 from styles.theme import card, css, donut, html, page_header
+from utils.api_client import ApiError, check_ats, save_resume
 
 SECTIONS = ["Profile", "Experience", "Education", "Skills", "Projects", "Certifications"]
 
@@ -221,28 +224,55 @@ def _check(ok, title, sub=""):
     return f'<div style="margin:0.35rem 0;font-size:0.85rem">{icon}&nbsp; {title}{sub_html}</div>'
 
 
+def _ats_verdict(score):
+    if score >= 80:
+        return "Good: applicant tracking systems can read your resume well"
+    if score >= 60:
+        return "Fair: a few fixes will help"
+    return "Needs work: see the suggestions below"
+
+
 @st.dialog("ATS check")
 def ats_dialog():
+    """Score the resume in the editor through the backend. Optionally score it against a pasted job as well."""
+    job = st.text_area("Job description (optional)", key="ats_job", height=90,
+                       placeholder="Paste a job posting to also check keyword match")
+    if st.button("Check against this job", key="ats_check_job", disabled=not job.strip()):
+        st.session_state.ats_job_used = job
+    try:
+        report = check_ats(st.session_state.resume_data, st.session_state.get("ats_job_used"))
+    except ApiError as e:
+        st.error(str(e))
+        return
+
+    score = report["score"]
     target = st.session_state.resume_data["profile"]["job_title"] or "your target role"
+    scope = "against the job description" if report["against_job"] else f"for readability (target role: {target})"
     html(
-        '<div class="r-muted" style="margin-top:-0.75rem;margin-bottom:0.75rem">How well applicant tracking systems can read your resume</div>'
         '<div style="background:#F5F3FF;border-radius:10px;padding:0.9rem 1rem;display:flex;gap:1rem;align-items:center">'
-        f'{donut(86, "#6C4FE0", 70)}'
-        f'<div><div style="font-weight:600">Good — a few quick fixes left</div>'
-        f'<div class="r-muted">Target role: {target}</div></div></div>'
-        '<div class="r-label" style="margin-top:1rem">What\'s working</div>'
-        + _check(True, "Standard section headings")
-        + _check(True, "Contact details are easy to find")
-        + _check(True, "Simple one-column layout")
-        + '<div class="r-label" style="margin-top:0.75rem">To improve</div>'
-        + _check(False, "Add missing keywords", "Kafka, AWS and Docker appear in the job but not in your resume")
-        + _check(False, "Add numbers to your bullets", "Only 1 of 4 bullets shows measurable impact")
+        f'{donut(int(score), "#6C4FE0", 70)}'
+        f'<div><div style="font-weight:600">{_ats_verdict(score)}</div>'
+        f'<div class="r-muted">Scored {scope}</div></div></div>'
     )
+    parts = "".join(
+        f'<div class="r-muted" style="margin:0.2rem 0">{name.title()}: {part["points"]:g} / {part["max"]}</div>'
+        for name, part in report["components"].items()
+    )
+    html(f'<div class="r-label" style="margin-top:1rem">Score breakdown</div>{parts}')
+    keywords = report["components"].get("keywords") or {}
+    if keywords.get("matched"):
+        html(_check(True, "Keywords found", ", ".join(keywords["matched"])))
+    suggestions = "".join(_check(False, _html.escape(s)) for s in report["suggestions"])
+    if suggestions:
+        html('<div class="r-label" style="margin-top:0.75rem">To improve</div>' + suggestions)
+    else:
+        html(_check(True, "No issues found"))
+
     c1, c2 = st.columns(2)
     with c1:
         if st.button("✦ Fix these with AI", type="primary", use_container_width=True):
             st.session_state.page = "AIAgents"
-            st.session_state.agent_view = "chat"
+            st.session_state.agent_view = "run"
             st.rerun()
     with c2:
         if st.button("Done", use_container_width=True):
@@ -265,14 +295,20 @@ def render():
         with a1:
             if st.button("✦ AI Improve", key="btn_ai", use_container_width=True):
                 st.session_state.page = "AIAgents"
-                st.session_state.agent_view = "chat"
+                st.session_state.agent_view = "run"  # the real AI run, through the backend
                 st.rerun()
         with a2:
             if st.button("ATS Check", key="btn_ats", use_container_width=True):
+                st.session_state.pop("ats_job_used", None)  # each open starts with a readability-only score
                 ats_dialog()
         with a3:
             if st.button("Save", key="btn_save", type="primary", use_container_width=True):
-                st.toast("Resume saved", icon=":material/check_circle:")
+                try:
+                    saved = save_resume(st.session_state.get("resume_id"), st.session_state.resume_data)
+                    st.session_state.resume_id = saved["id"]
+                    st.toast("Resume saved", icon=":material/check_circle:")
+                except ApiError as e:
+                    st.toast(str(e), icon=":material/error:")
 
     col_sections, col_content, col_preview = st.columns([1.4, 2.6, 2.4])
 
