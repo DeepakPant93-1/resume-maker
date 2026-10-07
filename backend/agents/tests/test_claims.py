@@ -1,58 +1,27 @@
-from app.steps.claims import ClaimParser, ClaimValidator
+from app.steps.claims import ClaimParser
 
 parse_claims = ClaimParser().parse
 merge_claims = ClaimParser().merge
 
-RESUME = {
-    "profile": {"summary": "Backend engineer"},
-    "experience": [{"company": "Coredge", "achievements": "• Cut deploy time 40%\n• Mentored 2 engineers"}],
-    "skills": {"languages": ["Python", "Go"], "tools": []},
-}
-
-
-def test_resolves_nested_paths_and_indexes():
-    assert ClaimValidator(RESUME).resolve("profile.summary") == "Backend engineer"
-    assert ClaimValidator(RESUME).resolve("experience[0].company") == "Coredge"
-    assert ClaimValidator(RESUME).resolve("skills.languages[1]") == "Go"
-
-
-def test_missing_empty_or_malformed_paths_resolve_to_none():
-    for ref in ("experience[5].company", "profile.nope", "skills.tools", "experience[0", "", "..x", "a b"):
-        assert ClaimValidator(RESUME).resolve(ref) is None, ref
-
-
-def test_validate_claims_flags_missing_and_nonexistent_refs():
-    claims = [
-        {"text": "Good claim", "source_ref": "profile.summary", "section": None},
-        {"text": "No ref", "source_ref": None, "section": None},
-        {"text": "Bad ref", "source_ref": "experience[3].achievements", "section": None},
-    ]
-    issues = ClaimValidator(RESUME).validate(claims)
-    assert len(issues) == 2
-    assert "Claim 2" in issues[0] and "no source_ref" in issues[0]
-    assert "Claim 3" in issues[1] and "does not exist" in issues[1]
-
-
 DRAFT = """\
 Experience
-- Led migration to microservices [source_ref: experience[0].achievements]
-- Invented a 10x speedup
+- Led migration to microservices
+- Cut deploy time 40%
 Summary
-Backend engineer who ships [source_ref: profile.summary]
+- Backend engineer
 Needs user input
 - How many engineers did you mentor?
 """
 
 
-def test_parse_claims_extracts_sections_refs_and_needs_input():
+def test_parse_claims_extracts_sections_and_needs_input():
     claims, needs = parse_claims(DRAFT)
 
-    assert [(c["section"], c["source_ref"]) for c in claims] == [
-        ("Experience", "experience[0].achievements"),
-        ("Experience", None),  # unsourced bullet is kept so the reviewer can reject it
-        ("Summary", "profile.summary"),
+    assert [(c["section"], c["text"]) for c in claims] == [
+        ("Experience", "Led migration to microservices"),
+        ("Experience", "Cut deploy time 40%"),
+        ("Summary", "Backend engineer"),
     ]
-    assert claims[0]["text"] == "Led migration to microservices"
     assert needs == ["How many engineers did you mentor?"]
 
 

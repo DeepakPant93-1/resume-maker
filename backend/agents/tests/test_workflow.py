@@ -19,9 +19,10 @@ RESUME = {
     "education": [{"degree": "B.Tech"}],
     "skills": {"languages": ["Python"], "frameworks": [], "tools": ["Docker"]},
 }
-GOOD_DRAFT = ("Summary\n- Backend engineer shipping Python services [source_ref: profile.summary]\n"
-              "Experience\n- Cut deploy time 40% using Docker [source_ref: experience[0].achievements]")
-UNSOURCED_DRAFT = "Experience\n- Invented a 10x speedup"
+GOOD_DRAFT = ("Summary\n- Backend engineer shipping Python services\n"
+              "Experience\n- Cut deploy time 40% using Docker")
+INVENTED_DRAFT = "Experience\n- Invented a 10x speedup"
+REJECTION = "REJECTED\n- The 10x speedup is not in the original resume"
 NEEDS_INPUT_DRAFT = GOOD_DRAFT + "\nNeeds user input\n- How many engineers did you mentor?"
 
 
@@ -64,21 +65,21 @@ def test_happy_path_runs_every_node_once_and_summarises():
     assert result["ats_with_draft"]["score"] >= result["ats"]["score"]
 
 
-def test_unsourced_claims_are_rejected_in_code_and_sent_back_with_the_issue():
-    model, _, result = _run(["Gap", UNSOURCED_DRAFT, GOOD_DRAFT, "APPROVED"])
+def test_a_rejected_draft_is_sent_back_to_the_rewriter_with_the_issue():
+    model, _, result = _run(["Gap", INVENTED_DRAFT, REJECTION, GOOD_DRAFT, "APPROVED"])
 
-    assert model.calls == 4  # the first review used no model call
+    assert model.calls == 5  # gap, rewrite, review, rewrite again, review
     assert result["rewrite_round"] == 2
-    assert "no source_ref" in model.prompt(2)  # the second rewrite was told why the first was rejected
+    assert "10x speedup is not in the original" in model.prompt(3)  # the second rewrite was told why
     assert result["review"]["approved"] is True
 
 
 def test_it_stops_after_the_round_limit_and_reports_open_issues():
-    model, _, result = _run(["Gap"] + [UNSOURCED_DRAFT] * MAX_REWRITE_ROUNDS)
+    model, _, result = _run(["Gap"] + [INVENTED_DRAFT, REJECTION] * MAX_REWRITE_ROUNDS)
 
     assert result["rewrite_round"] == MAX_REWRITE_ROUNDS
     assert f"NOT approved after {MAX_REWRITE_ROUNDS} draft(s)" in result["output"]
-    assert "no source_ref" in result["output"]
+    assert "10x speedup is not in the original" in result["output"]
 
 
 def test_a_draft_with_no_claims_is_not_reviewed_by_the_model():

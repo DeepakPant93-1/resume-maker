@@ -51,7 +51,7 @@ Two backend services (the Spring Boot API is a scaffold only; the Python agent s
 - **Java Spring Boot API** (`backend/resumemaker/`): CRUD, MongoDB, sessions/chat, SSE relay to the UI.
 - **Python agent service** (`backend/agents/`, in progress): FastAPI + **LangGraph**, all agents in one process.
 
-Agents (tool-using, looping): **Gap Analyst**, **Rewriter**, **Reviewer**. Deterministic steps (not agents): parse resume, extract JD, ATS score, export. The code fixes the order of the steps in a LangGraph `StateGraph` (`app/graph/workflow.py`), and the agents share a `WorkflowState`; `ask_user` uses LangGraph `interrupt()` with a checkpointer. Every rewritten claim must carry a `source_ref` to the original resume, and the Reviewer rejects claims without one.
+Agents (tool-using, looping): **Gap Analyst**, **Rewriter**, **Reviewer**. Deterministic steps (not agents): parse resume, extract JD, ATS score, export. The code fixes the order of the steps in a LangGraph `StateGraph` (`app/graph/workflow.py`), and the agents share a `WorkflowState`; `ask_user` uses LangGraph `interrupt()` with a checkpointer. The Reviewer fact-checks every rewritten claim against the original resume.
 
 ```
   START -> analyze_job -> gap_analyst -> rewriter --(facts missing)--> ask_user --+

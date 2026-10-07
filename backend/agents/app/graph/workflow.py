@@ -72,7 +72,7 @@ class ResumeWorkflow:
         return self._update_from(self.specialists["gap_analyst"](task, state))
 
     def rewriter(self, state: WorkflowState) -> dict[str, Any]:
-        """Node: the Rewriter drafts claims (each with a source_ref) and lists facts it lacks; counts the round."""
+        """Node: the Rewriter drafts claims and lists facts it lacks; counts the round."""
         round_number = state.get("rewrite_round", 0) + 1
         log.info("rewriter: drafting (round %d of %d)", round_number, self.MAX_REWRITE_ROUNDS)
         update = self._update_from(self.specialists["rewriter"](self._rewrite_task(state), state))
@@ -97,9 +97,9 @@ class ResumeWorkflow:
         }
 
     def reviewer(self, state: WorkflowState) -> dict[str, Any]:
-        """Node: the Reviewer checks the draft. An empty draft, or claims with a bad source_ref, are rejected in code."""
+        """Node: the Reviewer checks the draft. An empty draft is rejected in code."""
         if not state.get("claims"):
-            issue = "The rewriter produced no claims with a source_ref"
+            issue = "The rewriter produced no claims"
             log.warning("reviewer: rejected, the draft has no claims (no model call)")
             return {"review": {"approved": False, "issues": [issue]}}
         update = self._update_from(self.specialists["reviewer"](self._review_task(state), state))
@@ -179,8 +179,8 @@ class ResumeWorkflow:
         return "\n\n".join(parts)
 
     def _review_task(self, state: Mapping[str, Any]) -> str:
-        """Task text for the Reviewer: every current claim with its source_ref, to fact-check against the resume."""
-        draft = self._bullets([f"{c['text']} [source_ref: {c['source_ref']}]" for c in state.get("claims") or []])
+        """Task text for the Reviewer: every current claim, to fact-check against the resume."""
+        draft = self._bullets([c["text"] for c in state.get("claims") or []])
         return "Review this draft against the original resume:\n" + draft
 
     def _summary(self, state: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:

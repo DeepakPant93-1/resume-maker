@@ -4,7 +4,8 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
-from app.core.persistence import FAILED, RUNNING, WAITING_FOR_USER, Persistence
+from app.core.persistence import FAILED, RUNNING, WAITING_FOR_USER, RunStore
+from app.api.runs import run_routes
 from app.main import app
 
 RESUME = {"id": "resume-1", "profile": {"summary": "Backend engineer"}}
@@ -31,18 +32,19 @@ class Exploding(Scripted):
         raise RuntimeError("503 UNAVAILABLE")
 
 
-GOOD_DRAFT = "Summary\n- Backend engineer [source_ref: profile.summary]"
+GOOD_DRAFT = "Summary\n- Backend engineer"
 NEEDS_INPUT_DRAFT = GOOD_DRAFT + "\nNeeds user input\n- How many engineers did you mentor?"
 
 
 @pytest.fixture
-def persistence() -> Persistence:
-    return Persistence()
+def store(monkeypatch) -> RunStore:
+    store = RunStore()
+    monkeypatch.setattr(run_routes, "store", store)
+    return store
 
 
 @pytest.fixture
-def client(persistence, monkeypatch):
-    monkeypatch.setattr("app.api.runs.get_persistence", lambda: persistence)
+def client(store, monkeypatch):
     monkeypatch.setattr("app.api.runs.ModelFactory.build_fallback", lambda self: None)
     monkeypatch.setattr("app.api.runs.ModelFactory.build_tier_models", lambda self: {})  # ignore a local rewrite-model override
     with TestClient(app) as test_client:
@@ -106,24 +108,23 @@ def test_failed_run_records_the_error(client, monkeypatch):
     assert "503" in run["error"]
 
 
-def test_runs_cut_off_by_a_restart_are_marked_failed_on_startup(persistence, monkeypatch):
-    persistence.runs.create({"run_id": "stuck", "status": RUNNING, "resume": RESUME})
-    persistence.runs.create({"run_id": "paused", "status": WAITING_FOR_USER, "resume": RESUME})
-    monkeypatch.setattr("app.api.runs.get_persistence", lambda: persistence)
+def test_runs_cut_off_by_a_restart_are_marked_failed_on_startup(store, monkeypatch):
+    store.create({"run_id": "stuck", "status": RUNNING, "resume": RESUME})
+    store.create({"run_id": "paused", "status": WAITING_FOR_USER, "resume": RESUME})
 
     with TestClient(app):
         pass
 
-    assert persistence.runs.get("stuck")["status"] == FAILED
-    assert "restart" in persistence.runs.get("stuck")["error"]
-    assert persistence.runs.get("paused")["status"] == WAITING_FOR_USER  # its state is checkpointed, so it can resume
+    assert store.get("stuck")["status"] == FAILED
+    assert "restart" in store.get("stuck")["error"]
+    assert store.get("paused")["status"] == WAITING_FOR_USER  # its state is checkpointed, so it can resume
 
 
-def test_transition_only_applies_from_the_expected_status(persistence):
-    persistence.runs.create({"run_id": "r", "status": WAITING_FOR_USER, "resume": RESUME})
+def test_transition_only_applies_from_the_expected_status(store):
+    store.create({"run_id": "r", "status": WAITING_FOR_USER, "resume": RESUME})
 
-    assert persistence.runs.transition("r", WAITING_FOR_USER, status=RUNNING) is True
-    assert persistence.runs.transition("r", WAITING_FOR_USER, status=RUNNING) is False
+    assert store.transition("r", WAITING_FOR_USER, status=RUNNING) is True
+    assert store.transition("r", WAITING_FOR_USER, status=RUNNING) is False
 
 
 def test_run_with_a_job_description_tailors_to_it(client, monkeypatch):

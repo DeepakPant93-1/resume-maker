@@ -4,9 +4,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import runs
 from app.api.ats import router as ats_router
-from app.api.runs import router as runs_router
+from app.api.runs import router as runs_router, run_routes
 from app.api.summary import router as summary_router
 from app.core.config import get_settings
 from app.core.llm import ModelFactory
@@ -21,9 +20,8 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     # Runs cut off by the last shutdown can't continue (their worker is gone), so mark them failed instead
     # of leaving them "running" forever.
-    persistence = runs.get_persistence()
     log.info("Agent service starting: %s, storage=in memory (lost on restart)", _models(settings))
-    interrupted = persistence.runs.fail_interrupted()
+    interrupted = run_routes.store.fail_interrupted()
     if interrupted:
         log.warning("Marked %d run(s) interrupted by the previous shutdown as failed", interrupted)
     yield

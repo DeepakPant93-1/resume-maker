@@ -4,7 +4,7 @@ POST /api/runs takes either the resume JSON itself, or {"resume": {...}, "job_de
 With a job description, the workflow tailors the resume to it; without one it improves the resume on its own merits.
 
 A run ends `completed` or `failed`, or pauses as `waiting_for_user` when the workflow needs a fact from the user;
-answer it with POST /api/runs/{run_id}/resume. Records and graph state persist per `app.core.persistence`.
+answer it with POST /api/runs/{run_id}/resume. Records and graph state are kept by `RunStore` (in memory).
 """
 import logging
 import time
@@ -19,7 +19,7 @@ from app.api.base import BaseRoutes
 from app.core.config import get_settings
 from app.core.llm import ModelFactory
 from app.core.logging_config import run_context
-from app.core.persistence import COMPLETED, FAILED, RUNNING, WAITING_FOR_USER, get_persistence
+from app.core.persistence import COMPLETED, FAILED, RUNNING, WAITING_FOR_USER, RunStore
 from app.graph.workflow import ResumeWorkflow
 
 log = logging.getLogger(__name__)
@@ -40,6 +40,10 @@ class RunRoutes(BaseRoutes):
         "job_description", "ats", "gap_analysis", "claims", "needs_user_input", "review", "rewrite_round",
         "ats_with_draft",
     )
+
+    def __init__(self) -> None:
+        self.store = RunStore()
+        super().__init__()
 
     def register(self) -> None:
         self.router.add_api_route("", self.create_run, methods=["POST"], status_code=202)
@@ -73,19 +77,18 @@ class RunRoutes(BaseRoutes):
             self._execute_run(run_id, graph_input)
 
     def _execute_run(self, run_id: str, graph_input: Any) -> None:
-        persistence = get_persistence()
         continuing = isinstance(graph_input, Command)
         started = time.perf_counter()
         log.info("Run %s: %s", "continuing after the user's answer" if continuing else "started", run_id)
         try:
-            record = persistence.runs.get(run_id)
+            record = self.store.get(run_id)
             settings = get_settings()
             models = ModelFactory(settings)
             model = models.build_primary()
             fallback = models.build_fallback()
             if fallback is None:
                 log.warning("No fallback model; set AGENTS_FALLBACK_MODEL or the other provider's key")
-            graph = ResumeWorkflow(record["resume"], model, fallback, persistence.checkpointer,
+            graph = ResumeWorkflow(record["resume"], model, fallback, self.store.checkpointer,
                                    tier_models=models.build_tier_models()).build()
             result = graph.invoke(
                 graph_input,
@@ -99,15 +102,15 @@ class RunRoutes(BaseRoutes):
             if result.get("__interrupt__"):
                 question = result["__interrupt__"][0].value.get("question")
                 log.info("Run paused after %.1fs, waiting for the user: %s", seconds, question)
-                persistence.runs.update(run_id, status=WAITING_FOR_USER, question=question, state=state)
+                self.store.update(run_id, status=WAITING_FOR_USER, question=question, state=state)
             else:
                 log.info("Run completed in %.1fs", seconds)
-                persistence.runs.update(
+                self.store.update(
                     run_id, status=COMPLETED, question=None, output=result["output"], state=state
                 )
         except Exception as exc:  # noqa: BLE001 - surface any failure on the run record
             log.exception("Run failed after %.1fs", time.perf_counter() - started)
-            persistence.runs.update(run_id, status=FAILED, error=str(exc))
+            self.store.update(run_id, status=FAILED, error=str(exc))
 
     def create_run(self, body: dict[str, Any], background: BackgroundTasks) -> dict[str, str]:
         resume, job_description = self._split_request(body)
@@ -115,7 +118,7 @@ class RunRoutes(BaseRoutes):
         with run_context(run_id):
             log.info("POST /api/runs: resume %s, job description: %s", resume.get("id"),
                      f"{len(job_description)} characters" if job_description else "none")
-        get_persistence().runs.create({
+        self.store.create({
             "run_id": run_id,
             "resume_id": resume.get("id"),
             "status": RUNNING,
@@ -129,7 +132,7 @@ class RunRoutes(BaseRoutes):
         return {"run_id": run_id, "status": RUNNING}
 
     def get_run(self, run_id: str) -> dict[str, Any]:
-        record = get_persistence().runs.get(run_id)
+        record = self.store.get(run_id)
         if record is None:
             log.warning("GET /api/runs/%s: not found", run_id)
             raise HTTPException(status_code=404, detail="Run not found")
@@ -138,13 +141,12 @@ class RunRoutes(BaseRoutes):
 
     def resume_run(self, run_id: str, body: ResumeRunRequest, background: BackgroundTasks) -> dict[str, str]:
         """Answer the question a run is waiting on, and let it continue."""
-        runs = get_persistence().runs
-        record = runs.get(run_id)
+        record = self.store.get(run_id)
         if record is None:
             log.warning("POST /api/runs/%s/resume: run not found", run_id)
             raise HTTPException(status_code=404, detail="Run not found")
         # Atomic, so two quick answers cannot both resume the same pause.
-        if not runs.transition(run_id, WAITING_FOR_USER, status=RUNNING, question=None):
+        if not self.store.transition(run_id, WAITING_FOR_USER, status=RUNNING, question=None):
             log.warning("POST /api/runs/%s/resume: rejected, run is '%s'", run_id, record["status"])
             raise HTTPException(
                 status_code=409, detail=f"Run is '{record['status']}', not waiting for an answer"
@@ -155,4 +157,5 @@ class RunRoutes(BaseRoutes):
         return {"run_id": run_id, "status": RUNNING}
 
 
-router = RunRoutes().router
+run_routes = RunRoutes()
+router = run_routes.router

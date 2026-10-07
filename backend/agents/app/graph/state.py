@@ -20,7 +20,7 @@ class WorkflowState(TypedDict, total=False):
     ats: dict[str, Any]
     # gap_analyst
     gap_analysis: str
-    # rewriter: claims carry their source_ref; needs_user_input lists facts it could not source.
+    # rewriter: needs_user_input lists facts it lacks.
     claims: list[dict[str, Any]]
     needs_user_input: list[str]
     rewrite_round: int

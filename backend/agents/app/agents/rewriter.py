@@ -1,5 +1,4 @@
-"""Rewriter agent: rewrites resume sections for the target role.
-"""
+"""Rewriter agent: rewrites resume sections for the target role."""
 from collections.abc import Mapping
 from typing import Any
 
@@ -10,16 +9,15 @@ from app.steps.claims import ClaimParser
 REWRITER_PROMPT = """\
 You are the Rewriter on a resume-tailoring team.
 Rewrite only the section(s) named in the task, tailored to the target role.
-Put each rewritten claim on its own bullet line, ending with `[source_ref: <path into the resume JSON>]`,
-for example `- Led migration to microservices, cutting deploy time 40% [source_ref: experience[0].achievements]`.
-The path must exist in the original resume. Put a plain heading line (e.g. `Experience`) before each section's claims.
-If you cannot point to a source for a claim, leave it out and list it as a bullet under a
-`Needs user input` heading instead.
+Put each rewritten claim on its own bullet line, for example `- Led migration to microservices, cutting deploy time 40%`.
+Put a plain heading line (e.g. `Experience`) before each section's claims.
+Use only facts from the original resume. If a claim needs a fact you do not have, leave it out and list it as a
+bullet under a `Needs user input` heading instead.
 """
 
 
 class RewriterAgent(SpecialistAgent):
-    """Rewrites resume sections; every claim carries a source_ref."""
+    """Rewrites resume sections and files each bullet it writes as a claim in the run state."""
 
     name = "rewriter"
     tier = "rewrite"
