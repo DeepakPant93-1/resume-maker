@@ -44,6 +44,7 @@ def persistence() -> Persistence:
 def client(persistence, monkeypatch):
     monkeypatch.setattr("app.api.runs.get_persistence", lambda: persistence)
     monkeypatch.setattr("app.api.runs.ModelFactory.build_fallback", lambda self: None)
+    monkeypatch.setattr("app.api.runs.ModelFactory.build_tier_models", lambda self: {})  # ignore a local rewrite-model override
     with TestClient(app) as test_client:
         yield test_client
 
@@ -51,7 +52,7 @@ def client(persistence, monkeypatch):
 def _models(monkeypatch, *models: BaseChatModel):
     """Each graph build gets the next model, like a fresh process would build its own."""
     queue = iter(models)
-    monkeypatch.setattr("app.api.runs.ModelFactory.build_primary", lambda self: next(queue))
+    monkeypatch.setattr("app.api.runs.ModelFactory.build_primary", lambda self, tier="agent": next(queue))
 
 
 def test_run_completes_and_hides_the_resume_payload(client, monkeypatch):
