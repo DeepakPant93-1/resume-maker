@@ -1,17 +1,12 @@
-import os
-import uuid
-
 import pytest
 from fastapi.testclient import TestClient
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 
-from app.core.config import Settings
-from app.core.persistence import FAILED, RUNNING, WAITING_FOR_USER, Persistence, build_persistence
+from app.core.persistence import FAILED, RUNNING, WAITING_FOR_USER, Persistence
 from app.main import app
 
-MONGO_URI = os.environ.get("AGENTS_TEST_MONGODB_URI")  # e.g. mongodb://root:secret@localhost:27017/?authSource=admin
 RESUME = {"id": "resume-1", "profile": {"summary": "Backend engineer"}}
 
 
@@ -40,16 +35,9 @@ GOOD_DRAFT = "Summary\n- Backend engineer [source_ref: profile.summary]"
 NEEDS_INPUT_DRAFT = GOOD_DRAFT + "\nNeeds user input\n- How many engineers did you mentor?"
 
 
-@pytest.fixture(params=["memory", pytest.param("mongo", marks=pytest.mark.skipif(
-    not MONGO_URI, reason="set AGENTS_TEST_MONGODB_URI to run against a real MongoDB"))])
-def persistence(request) -> Persistence:
-    if request.param == "memory":
-        yield build_persistence(Settings(_env_file=None))
-        return
-    database = f"agents_test_{uuid.uuid4().hex[:8]}"
-    built = build_persistence(Settings(_env_file=None, mongodb_uri=MONGO_URI, mongodb_database=database))
-    yield built
-    built.runs._runs.database.client.drop_database(database)
+@pytest.fixture
+def persistence() -> Persistence:
+    return Persistence()
 
 
 @pytest.fixture

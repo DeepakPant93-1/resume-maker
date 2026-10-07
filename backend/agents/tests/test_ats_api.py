@@ -1,7 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.core.config import Settings
-from app.core.persistence import build_persistence
+from app.core.persistence import Persistence
 from app.main import app
 
 RESUME = {
@@ -14,7 +13,7 @@ RESUME = {
 
 
 def _client(monkeypatch):
-    persistence = build_persistence(Settings(_env_file=None))
+    persistence = Persistence()
     monkeypatch.setattr("app.api.runs.get_persistence", lambda: persistence)
     return TestClient(app)
 

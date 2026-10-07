@@ -1,19 +1,17 @@
-"""Where runs and graph checkpoints live: MongoDB when AGENTS_MONGODB_URI is set, otherwise in memory.
+"""Where runs and graph checkpoints live: in memory, so they are lost when the service restarts.
 
 The checkpointer keeps the graph state (messages, claims, review...) so a run paused on `ask_user` can be
-resumed even after a restart. The run store keeps each run's record (status, question, output, error).
+resumed later. The run store keeps each run's record (status, question, output, error).
 """
 import copy
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import InMemorySaver
-
-from app.core.config import Settings, get_settings
 
 RUNNING = "running"
 WAITING_FOR_USER = "waiting_for_user"
@@ -61,62 +59,13 @@ class InMemoryRunStore:
             return len(stuck)
 
 
-class MongoRunStore:
-    def __init__(self, collection: Any) -> None:
-        self._runs = collection
-
-    def create(self, record: dict[str, Any]) -> None:
-        self._runs.insert_one({"_id": record["run_id"], **record, "created_at": _now(), "updated_at": _now()})
-
-    def get(self, run_id: str) -> Optional[dict[str, Any]]:
-        record = self._runs.find_one({"_id": run_id})
-        if record:
-            record.pop("_id")
-        return record
-
-    def update(self, run_id: str, **fields: Any) -> None:
-        self._runs.update_one({"_id": run_id}, {"$set": {**fields, "updated_at": _now()}})
-
-    def transition(self, run_id: str, expected_status: str, **fields: Any) -> bool:
-        result = self._runs.update_one(
-            {"_id": run_id, "status": expected_status}, {"$set": {**fields, "updated_at": _now()}}
-        )
-        return result.modified_count == 1
-
-    def fail_interrupted(self) -> int:
-        result = self._runs.update_many(
-            {"status": RUNNING},
-            {"$set": {"status": FAILED, "error": "Interrupted by a service restart", "updated_at": _now()}},
-        )
-        return result.modified_count
-
-
 @dataclass
 class Persistence:
-    checkpointer: BaseCheckpointSaver
-    runs: InMemoryRunStore | MongoRunStore
-
-
-def build_persistence(settings: Settings) -> Persistence:
-    if not settings.mongodb_uri:
-        return Persistence(InMemorySaver(), InMemoryRunStore())
-
-    from langgraph.checkpoint.mongodb import MongoDBSaver
-    from pymongo import MongoClient
-
-    client = MongoClient(settings.mongodb_uri, serverSelectionTimeoutMS=5000)
-    client.admin.command("ping")  # fail at startup, not on the first run
-    database = client[settings.mongodb_database]
-    checkpointer = MongoDBSaver(
-        client,
-        db_name=settings.mongodb_database,
-        checkpoint_collection_name="agent_checkpoints",
-        writes_collection_name="agent_checkpoint_writes",
-    )
-    return Persistence(checkpointer, MongoRunStore(database["agent_runs"]))
+    checkpointer: BaseCheckpointSaver = field(default_factory=InMemorySaver)
+    runs: InMemoryRunStore = field(default_factory=InMemoryRunStore)
 
 
 @lru_cache
 def get_persistence() -> Persistence:
-    """Process-wide persistence, built on first use from the environment settings."""
-    return build_persistence(get_settings())
+    """Process-wide persistence, created on first use."""
+    return Persistence()

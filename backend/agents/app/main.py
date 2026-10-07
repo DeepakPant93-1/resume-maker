@@ -19,11 +19,10 @@ log = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    # Fails fast here if MongoDB is configured but unreachable. Runs cut off by the last shutdown can't
-    # continue (their worker is gone), so mark them failed instead of leaving them "running" forever.
+    # Runs cut off by the last shutdown can't continue (their worker is gone), so mark them failed instead
+    # of leaving them "running" forever.
     persistence = runs.get_persistence()
-    log.info("Agent service starting: %s, storage=%s", _models(settings),
-             f"MongoDB ({settings.mongodb_database})" if settings.mongodb_uri else "in memory (lost on restart)")
+    log.info("Agent service starting: %s, storage=in memory (lost on restart)", _models(settings))
     interrupted = persistence.runs.fail_interrupted()
     if interrupted:
         log.warning("Marked %d run(s) interrupted by the previous shutdown as failed", interrupted)

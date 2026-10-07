@@ -14,7 +14,7 @@ LOG_FORMAT = "%(asctime)s.%(msecs)03d %(levelname)-5s [%(threadName)s] [run %(ru
 DATE_FORMAT = "%H:%M:%S"
 
 # Chatty third-party loggers stay at WARNING even when the service runs at DEBUG.
-_QUIET = ("httpx", "httpcore", "urllib3", "pymongo", "google_genai", "anthropic", "langchain_google_genai")
+_QUIET = ("httpx", "httpcore", "urllib3", "google_genai", "anthropic", "langchain_google_genai")
 
 _run_id: ContextVar[str] = ContextVar("run_id", default="-")
 

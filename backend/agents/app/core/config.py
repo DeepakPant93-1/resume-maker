@@ -35,9 +35,6 @@ class Settings(BaseSettings):
     llm_max_retries: int = 5
     # Model used when the primary keeps failing. Defaults to the other provider's model when its key is set.
     fallback_model: Optional[str] = None
-    # MongoDB for run records and graph checkpoints. When unset, both live in memory and are lost on restart.
-    mongodb_uri: Optional[str] = None
-    mongodb_database: str = "resume_maker"
     # Log level of the service's own loggers: DEBUG, INFO, WARNING...
     log_level: str = "INFO"
 
