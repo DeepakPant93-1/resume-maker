@@ -41,35 +41,35 @@ class ResumeParserTest {
 	void parsesSectionsFromResumeText() {
 		ResumeRequest r = new ResumeParser().parseText(SAMPLE);
 
-		assertThat(r.getProfile().getFullName()).isEqualTo("Suraj Singh Karki");
-		assertThat(r.getProfile().getJobTitle()).isEqualTo("Senior Software Engineer");
-		assertThat(r.getProfile().getEmail()).isEqualTo("suraj.karki@coredge.io");
-		assertThat(r.getProfile().getPhone()).isEqualTo("+91-9800000000");
-		assertThat(r.getProfile().getLinkedin()).isEqualTo("linkedin.com/in/surajsingh");
-		assertThat(r.getProfile().getSummary()).startsWith("Results-driven");
+		assertThat(r.profile().fullName()).isEqualTo("Suraj Singh Karki");
+		assertThat(r.profile().jobTitle()).isEqualTo("Senior Software Engineer");
+		assertThat(r.profile().email()).isEqualTo("suraj.karki@coredge.io");
+		assertThat(r.profile().phone()).isEqualTo("+91-9800000000");
+		assertThat(r.profile().linkedin()).isEqualTo("linkedin.com/in/surajsingh");
+		assertThat(r.profile().summary()).startsWith("Results-driven");
 
-		assertThat(r.getExperience()).hasSize(2);
-		assertThat(r.getExperience().get(0).getJobTitle()).isEqualTo("Senior Backend Engineer");
-		assertThat(r.getExperience().get(0).getCompany()).isEqualTo("Coredge");
-		assertThat(r.getExperience().get(0).isCurrent()).isTrue();
-		assertThat(r.getExperience().get(0).getAchievements()).contains("• Mentored 2 junior engineers");
-		assertThat(r.getExperience().get(1).getJobTitle()).isEqualTo("Software Engineer");
-		assertThat(r.getExperience().get(1).getCompany()).isEqualTo("Previous Company Pvt. Ltd.");
+		assertThat(r.experience()).hasSize(2);
+		assertThat(r.experience().get(0).jobTitle()).isEqualTo("Senior Backend Engineer");
+		assertThat(r.experience().get(0).company()).isEqualTo("Coredge");
+		assertThat(r.experience().get(0).current()).isTrue();
+		assertThat(r.experience().get(0).achievements()).contains("• Mentored 2 junior engineers");
+		assertThat(r.experience().get(1).jobTitle()).isEqualTo("Software Engineer");
+		assertThat(r.experience().get(1).company()).isEqualTo("Previous Company Pvt. Ltd.");
 
-		assertThat(r.getEducation()).hasSize(1);
-		assertThat(r.getEducation().get(0).getDegree()).isEqualTo("B.Tech, Computer Science");
-		assertThat(r.getEducation().get(0).getUniversity()).isEqualTo("Example Institute of Technology");
-		assertThat(r.getEducation().get(0).getGrade()).isEqualTo("8.5 CGPA");
+		assertThat(r.education()).hasSize(1);
+		assertThat(r.education().get(0).degree()).isEqualTo("B.Tech, Computer Science");
+		assertThat(r.education().get(0).university()).isEqualTo("Example Institute of Technology");
+		assertThat(r.education().get(0).grade()).isEqualTo("8.5 CGPA");
 
-		assertThat(r.getSkills().getLanguages()).containsExactly("Python", "JavaScript", "Go");
-		assertThat(r.getSkills().getFrameworks()).containsExactly("FastAPI", "React", "Spring Boot");
-		assertThat(r.getSkills().getTools()).containsExactly("Docker", "Kubernetes");
+		assertThat(r.skills().languages()).containsExactly("Python", "JavaScript", "Go");
+		assertThat(r.skills().frameworks()).containsExactly("FastAPI", "React", "Spring Boot");
+		assertThat(r.skills().tools()).containsExactly("Docker", "Kubernetes");
 
-		assertThat(r.getProjects()).hasSize(1);
-		assertThat(r.getProjects().get(0).getName()).isEqualTo("Resume Maker AI Agent");
-		assertThat(r.getProjects().get(0).getTechnologies()).isEqualTo("Python, FastAPI");
+		assertThat(r.projects()).hasSize(1);
+		assertThat(r.projects().get(0).name()).isEqualTo("Resume Maker AI Agent");
+		assertThat(r.projects().get(0).technologies()).isEqualTo("Python, FastAPI");
 
-		assertThat(r.getCertifications()).hasSize(1);
-		assertThat(r.getCertifications().get(0).getIssuer()).isEqualTo("Amazon Web Services");
+		assertThat(r.certifications()).hasSize(1);
+		assertThat(r.certifications().get(0).issuer()).isEqualTo("Amazon Web Services");
 	}
 }

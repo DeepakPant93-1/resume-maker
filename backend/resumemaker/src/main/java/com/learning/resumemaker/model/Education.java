@@ -1,20 +1,17 @@
 package com.learning.resumemaker.model;
 
-import lombok.AllArgsConstructor;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
+/** One degree or course of study. */
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class Education {
-
-	private String degree;
-	private String university;
-	private String startYear;
-	private String endYear;
-	private String grade;
-	private String location;
+@Schema(description = "One education entry")
+public record Education(
+		@Size(max = 200) String degree,
+		@Size(max = 200) String university,
+		@Size(max = 20) String startYear,
+		@Size(max = 20) String endYear,
+		@Size(max = 50) String grade,
+		@Size(max = 200) String location) {
 }

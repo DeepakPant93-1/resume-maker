@@ -3,15 +3,40 @@ spring:
     name: resumemaker
   jackson:
     property-naming-strategy: SNAKE_CASE
+    deserialization:
+      # A missing or null field such as experience[].current means false, instead of a 400 (Jackson 3 is strict by default).
+      fail-on-null-for-primitives: false
+  data:
+    mongodb:
+      # Lets the unique index on users.email be created, so two accounts can never share an email.
+      auto-index-creation: true
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
 
+app:
+  jwt:
+    # Login tokens (JWT, HS256). Set JWT_SECRET to a long random string (at least 32 bytes) outside local development.
+    secret: ${JWT_SECRET:dev-only-secret-change-me-before-deploying-0123456789}
+    expiry: 8h
+
 agent:
   service:
     url: http://localhost:8000
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
 logging:
+  level:
+    com.learning.resumemaker.aspect.LoggingAspect: DEBUG
   pattern:
-    console: "%green(%d{HH:mm:ss.SSS}) %blue(%-5level) %red([%thread]) %yellow(%logger{15}) - %msg%n"
+    console: "%green(%d{HH:mm:ss.SSS}) %blue(%-5level) %red([%thread]) %yellow([%X{requestId:-}] [%X{userId:-}]) %cyan(%logger{15}) - %msg%n"

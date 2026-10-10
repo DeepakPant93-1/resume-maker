@@ -21,7 +21,7 @@ import com.learning.resumemaker.document.UserDocument;
 class JwtServiceTest {
 
 	private static final String SECRET = "test-secret-that-is-long-enough-for-hs256-0123456789";
-	private final SecurityConfig config = new SecurityConfig();
+	private final SecurityConfig config = new SecurityConfig(null);
 
 	private JwtProperties properties(String secret) {
 		return new JwtProperties(secret, Duration.ofHours(8));

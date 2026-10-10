@@ -1,21 +1,18 @@
 package com.learning.resumemaker.model;
 
-import lombok.AllArgsConstructor;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
+/** Who the resume is about and how to reach them. */
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class Profile {
-
-	private String fullName;
-	private String jobTitle;
-	private String email;
-	private String phone;
-	private String location;
-	private String linkedin;
-	private String summary;
+@Schema(description = "Personal details and professional summary")
+public record Profile(
+		@Size(max = 200) String fullName,
+		@Size(max = 200) String jobTitle,
+		@Size(max = 254) String email,
+		@Size(max = 50) String phone,
+		@Size(max = 200) String location,
+		@Size(max = 300) String linkedin,
+		@Size(max = 5000) String summary) {
 }

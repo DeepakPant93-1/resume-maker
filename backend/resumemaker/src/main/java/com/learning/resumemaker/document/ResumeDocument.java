@@ -36,21 +36,23 @@ public class ResumeDocument {
 	private Instant createdAt;
 	private Instant updatedAt;
 
+	/** Stored form of the Metadata section. */
 	@Data
 	@Builder
 	@NoArgsConstructor
 	@AllArgsConstructor
-public static class Metadata {
+	public static class Metadata {
 		private String title;
 		private String template;
 		private Integer atsScore;
 	}
 
+	/** Stored form of the Profile section. */
 	@Data
 	@Builder
 	@NoArgsConstructor
 	@AllArgsConstructor
-public static class Profile {
+	public static class Profile {
 		private String fullName;
 		private String jobTitle;
 		private String email;
@@ -60,11 +62,12 @@ public static class Profile {
 		private String summary;
 	}
 
+	/** Stored form of the Experience section. */
 	@Data
 	@Builder
 	@NoArgsConstructor
 	@AllArgsConstructor
-public static class Experience {
+	public static class Experience {
 		private String jobTitle;
 		private String company;
 		private String startDate;
@@ -73,11 +76,12 @@ public static class Experience {
 		private String achievements;
 	}
 
+	/** Stored form of the Education section. */
 	@Data
 	@Builder
 	@NoArgsConstructor
 	@AllArgsConstructor
-public static class Education {
+	public static class Education {
 		private String degree;
 		private String university;
 		private String startYear;
@@ -86,40 +90,44 @@ public static class Education {
 		private String location;
 	}
 
+	/** Stored form of the Skills section. */
 	@Data
 	@Builder
 	@NoArgsConstructor
 	@AllArgsConstructor
-public static class Skills {
+	public static class Skills {
 		private List<String> languages;
 		private List<String> frameworks;
 		private List<String> tools;
 	}
 
+	/** Stored form of the Project section. */
 	@Data
 	@Builder
 	@NoArgsConstructor
 	@AllArgsConstructor
-public static class Project {
+	public static class Project {
 		private String name;
 		private String description;
 		private String technologies;
 	}
 
+	/** Stored form of the Certification section. */
 	@Data
 	@Builder
 	@NoArgsConstructor
 	@AllArgsConstructor
-public static class Certification {
+	public static class Certification {
 		private String name;
 		private String issuer;
 	}
 
+	/** Stored form of the SpokenLanguage section. */
 	@Data
 	@Builder
 	@NoArgsConstructor
 	@AllArgsConstructor
-public static class SpokenLanguage {
+	public static class SpokenLanguage {
 		private String language;
 		private String proficiency;
 	}

@@ -1,17 +1,14 @@
 package com.learning.resumemaker.model;
 
-import lombok.AllArgsConstructor;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class Project {
-
-	private String name;
-	private String description;
-	private String technologies;
+/** One project on the resume. */
+@Builder(toBuilder = true)
+@Schema(description = "One project entry")
+public record Project(
+		@Size(max = 200) String name,
+		@Size(max = 5000) String description,
+		@Size(max = 500) String technologies) {
 }

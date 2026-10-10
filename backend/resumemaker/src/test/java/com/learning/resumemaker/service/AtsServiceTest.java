@@ -1,10 +1,8 @@
 package com.learning.resumemaker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -17,7 +15,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.learning.resumemaker.client.AgentClient;
-import com.learning.resumemaker.exception.InvalidRequestException;
 import com.learning.resumemaker.model.AtsComponent;
 import com.learning.resumemaker.model.AtsReport;
 import com.learning.resumemaker.model.AtsRequest;
@@ -49,31 +46,24 @@ class AtsServiceTest {
 		when(agentClient.atsScore(any())).thenReturn(report());
 		ResumeRequest resume = resume();
 
-		AtsReport result = service().check(new AtsRequest(resume, "Requirements\n- Kafka"));
+		AtsReport result = service().checkResume(new AtsRequest(resume, "Requirements\n- Kafka"));
 
-		assertThat(result.getScore()).isEqualTo(83);
-		assertThat(result.getComponents().get("keywords").getMissing()).containsExactly("kafka");
+		assertThat(result.score()).isEqualTo(83);
+		assertThat(result.components().get("keywords").missing()).containsExactly("kafka");
 		ArgumentCaptor<AtsRequest> sent = ArgumentCaptor.forClass(AtsRequest.class);
 		verify(agentClient).atsScore(sent.capture());
-		assertThat(sent.getValue().getResume()).isSameAs(resume);
-		assertThat(sent.getValue().getJobDescription()).isEqualTo("Requirements\n- Kafka");
+		assertThat(sent.getValue().resume()).isSameAs(resume);
+		assertThat(sent.getValue().jobDescription()).isEqualTo("Requirements\n- Kafka");
 	}
 
 	@Test
 	void aBlankJobDescriptionIsSentAsNull() {
 		when(agentClient.atsScore(any())).thenReturn(report());
 
-		service().check(new AtsRequest(resume(), "  "));
+		service().checkResume(new AtsRequest(resume(), "  "));
 
 		ArgumentCaptor<AtsRequest> sent = ArgumentCaptor.forClass(AtsRequest.class);
 		verify(agentClient).atsScore(sent.capture());
-		assertThat(sent.getValue().getJobDescription()).isNull();
-	}
-
-	@Test
-	void aMissingResumeIsRejectedWithoutCallingTheAgent() {
-		assertThatThrownBy(() -> service().check(new AtsRequest(null, "job"))).isInstanceOf(InvalidRequestException.class);
-		assertThatThrownBy(() -> service().check(null)).isInstanceOf(InvalidRequestException.class);
-		verifyNoInteractions(agentClient);
+		assertThat(sent.getValue().jobDescription()).isNull();
 	}
 }

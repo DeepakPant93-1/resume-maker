@@ -4,7 +4,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Locale;
-import java.util.regex.Pattern;
 
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,9 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class AuthService {
 
-	static final int MIN_PASSWORD_LENGTH = 8;
 	static final int MAX_PASSWORD_BYTES = 72; // BCrypt only uses the first 72 bytes, so longer passwords are refused
-	private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
 	private final UserRepository users;
 	private final PasswordEncoder passwordEncoder;
@@ -37,49 +34,50 @@ public class AuthService {
 	/** A hash nobody has the password for. Checking against it keeps an unknown email as slow as a wrong password. */
 	private String decoyHash;
 
+	/**
+	 * Creates an account and signs it in.
+	 *
+	 * @param request the validated sign-up form
+	 * @return the token and the new user
+	 * @throws EmailAlreadyUsedException if the email already has an account
+	 */
 	public AuthResponse register(RegisterRequest request) {
-		String email = normalize(request == null ? null : request.getEmail());
-		String password = request == null ? null : request.getPassword();
-		if (!EMAIL.matcher(email).matches()) {
-			log.warn("Registration rejected: '{}' is not a valid email address", email);
-			throw new InvalidRequestException("Please enter a valid email address");
-		}
-		if (password == null || password.length() < MIN_PASSWORD_LENGTH) {
-			log.warn("Registration rejected for {}: the password is shorter than {} characters", email, MIN_PASSWORD_LENGTH);
-			throw new InvalidRequestException("The password must be at least " + MIN_PASSWORD_LENGTH + " characters");
-		}
-		if (password.getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
-			log.warn("Registration rejected for {}: the password is longer than {} bytes", email, MAX_PASSWORD_BYTES);
+		String email = normalize(request.email());
+		if (request.password().getBytes(StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES) {
 			throw new InvalidRequestException("The password is too long (at most " + MAX_PASSWORD_BYTES + " bytes)");
 		}
 		if (users.existsByEmail(email)) {
-			log.warn("Registration rejected: an account already exists for {}", email);
 			throw new EmailAlreadyUsedException("An account with this email already exists");
 		}
 
 		Instant now = clock.instant();
-		String name = request.getName() == null || request.getName().isBlank() ? email.substring(0, email.indexOf('@'))
-				: request.getName().strip();
+		String name = request.name() == null || request.name().isBlank() ? email.substring(0, email.indexOf('@'))
+				: request.name().strip();
 		UserDocument user;
 		try {
-			user = users.save(UserDocument.builder().email(email).name(name).passwordHash(passwordEncoder.encode(password))
-					.createdAt(now).lastLoginAt(now).build());
+			user = users.save(UserDocument.builder().email(email).name(name)
+					.passwordHash(passwordEncoder.encode(request.password())).createdAt(now).lastLoginAt(now).build());
 		} catch (DuplicateKeyException e) { // two sign-ups racing past the check above: the unique index decides
-			log.warn("Registration rejected: {} was registered by a concurrent request", email);
 			throw new EmailAlreadyUsedException("An account with this email already exists");
 		}
-		log.info("User {} registered ({})", user.getId(), email);
+		log.info("User {} registered", user.getId());
 		return respond(user);
 	}
 
+	/**
+	 * Checks the credentials and signs the user in.
+	 *
+	 * @param request the validated login form
+	 * @return the token and the user
+	 * @throws AuthenticationFailedException if the email or password is wrong
+	 */
 	public AuthResponse login(LoginRequest request) {
-		String email = normalize(request == null ? null : request.getEmail());
-		String password = request == null || request.getPassword() == null ? "" : request.getPassword();
+		String email = normalize(request.email());
 		UserDocument user = users.findByEmail(email).orElse(null);
 		// Same message and same work for "no such user" and "wrong password", so neither can be told apart.
-		boolean valid = passwordEncoder.matches(password, user == null ? decoy() : user.getPasswordHash()) && user != null;
+		boolean valid = passwordEncoder.matches(request.password(), user == null ? decoy() : user.getPasswordHash())
+				&& user != null;
 		if (!valid) {
-			log.warn("Login failed for {}", email);
 			throw new AuthenticationFailedException("Invalid email or password");
 		}
 		user.setLastLoginAt(clock.instant());
@@ -88,11 +86,15 @@ public class AuthService {
 		return respond(user);
 	}
 
-	public UserProfile profile(String userId) {
-		return users.findById(userId).map(AuthService::toProfile).orElseThrow(() -> {
-			log.warn("A valid token belongs to user {}, who no longer exists", userId);
-			return new AuthenticationFailedException("This account no longer exists");
-		});
+	/**
+	 * The signed-in user.
+	 *
+	 * @throws AuthenticationFailedException if the account no longer exists
+	 */
+	public UserProfile getProfile() {
+		String userId = UserContext.requireUserId();
+		return users.findById(userId).map(AuthService::toProfile)
+				.orElseThrow(() -> new AuthenticationFailedException("This account no longer exists"));
 	}
 
 	private AuthResponse respond(UserDocument user) {

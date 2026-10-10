@@ -2,18 +2,15 @@ package com.learning.resumemaker.model;
 
 import java.util.List;
 
-import lombok.AllArgsConstructor;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
+/** Skills grouped by kind. */
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class Skills {
-
-	private List<String> languages;
-	private List<String> frameworks;
-	private List<String> tools;
+@Schema(description = "Skills grouped into languages, frameworks and tools")
+public record Skills(
+		@Size(max = 100) List<@Size(max = 100) String> languages,
+		@Size(max = 100) List<@Size(max = 100) String> frameworks,
+		@Size(max = 100) List<@Size(max = 100) String> tools) {
 }

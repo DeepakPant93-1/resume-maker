@@ -1,16 +1,10 @@
 package com.learning.resumemaker.model;
 
-import lombok.AllArgsConstructor;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 /** The professional summary written by the agent service. */
-@Data
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class SummaryResponse {
-
-	private String summary;
+@Schema(description = "A written professional summary")
+public record SummaryResponse(String summary) {
 }

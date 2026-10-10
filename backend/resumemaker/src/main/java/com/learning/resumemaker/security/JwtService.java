@@ -25,10 +25,13 @@ public class JwtService {
 	private final JwtProperties properties;
 	private final Clock clock;
 
+	/** A signed token and the moment it stops being valid. */
 	public record IssuedToken(String value, Instant expiresAt) {
 	}
 
-	/** A token whose subject is the user's id, so every later call can be tied to its owner. */
+	/**
+	 * Signs a token whose subject is the user's id, so every later call can be tied to its owner.
+	 */
 	public IssuedToken issue(UserDocument user) {
 		Instant now = clock.instant();
 		Instant expiresAt = now.plus(properties.expiry());

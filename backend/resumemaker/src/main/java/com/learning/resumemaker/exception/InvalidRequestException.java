@@ -1,12 +1,16 @@
 package com.learning.resumemaker.exception;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(HttpStatus.BAD_REQUEST)
-public class InvalidRequestException extends RuntimeException {
+/** Thrown when a request breaks a business rule that bean validation cannot express. */
+public class InvalidRequestException extends BaseException {
 
+	/**
+	 * Creates the exception.
+	 *
+	 * @param message message shown to the client
+	 */
 	public InvalidRequestException(String message) {
-		super(message);
+		super(HttpStatus.BAD_REQUEST, message);
 	}
 }

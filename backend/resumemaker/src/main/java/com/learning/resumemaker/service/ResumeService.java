@@ -14,10 +14,12 @@ import com.learning.resumemaker.model.ResumeRequest;
 import com.learning.resumemaker.model.ResumeResponse;
 import com.learning.resumemaker.model.ResumeSummary;
 import com.learning.resumemaker.repository.ResumeRepository;
+import com.learning.resumemaker.security.UserContext;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/** Creates, reads and updates the signed-in user's resumes. Every query is scoped to that user. */
 @Slf4j
 @RequiredArgsConstructor
 @Service
@@ -29,38 +31,39 @@ public class ResumeService {
 	private final Clock clock;
 
 	/** Saves a new resume (built in the UI wizard or parsed from an upload); MongoDB assigns the id. */
-	public ResumeResponse create(String userId, ResumeRequest request) {
+	public ResumeResponse createResume(ResumeRequest request) {
 		Instant now = clock.instant();
-		var saved = repository.save(prepare(userId, null, request, now, now, null));
-		log.info("Resume {} created in database", saved.getId());
+		var saved = repository.save(prepare(UserContext.requireUserId(), null, request, now, now, null));
+		log.info("Resume {} created", saved.getId());
 		return mapper.toResponse(saved);
 	}
 
 	/** Replaces an existing resume; the id comes from the path, never the body. */
-	public ResumeResponse update(String userId, String id, ResumeRequest request) {
-		var existing = repository.findByIdAndUserId(id, userId).orElseThrow(() -> {
-			log.warn("Update rejected: resume {} not found", id);
-			return new ResumeNotFoundException(id);
-		});
+	public ResumeResponse updateResume(String id, ResumeRequest request) {
+		String userId = UserContext.requireUserId();
+		var existing = findOwned(userId, id);
 		var saved = repository.save(prepare(userId, id, request, existing.getCreatedAt(), clock.instant(), existing));
-		log.info("Resume {} updated in database", saved.getId());
+		log.info("Resume {} updated", saved.getId());
 		return mapper.toResponse(saved);
 	}
 
-	public ResumeResponse get(String userId, String id) {
-		return mapper.toResponse(repository.findByIdAndUserId(id, userId).orElseThrow(() -> {
-			log.warn("Resume {} not found", id);
-			return new ResumeNotFoundException(id);
-		}));
+	/** One of the signed-in user's resumes; someone else's looks exactly like one that does not exist. */
+	public ResumeResponse getResume(String id) {
+		return mapper.toResponse(findOwned(UserContext.requireUserId(), id));
 	}
 
-	/** The user's resumes, most recently saved first. */
-	public List<ResumeSummary> list(String userId) {
+	/** The signed-in user's resumes, most recently saved first. */
+	public List<ResumeSummary> listResumes() {
+		String userId = UserContext.requireUserId();
 		List<ResumeSummary> summaries = repository.findByUserId(userId).stream().map(this::summarize)
-				.sorted(Comparator.comparing(ResumeSummary::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+				.sorted(Comparator.comparing(ResumeSummary::updatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
 				.toList();
-		log.info("Listed {} resume(s) for user {}", summaries.size(), userId);
+		log.info("Listed {} resume(s)", summaries.size());
 		return summaries;
+	}
+
+	private ResumeDocument findOwned(String userId, String id) {
+		return repository.findByIdAndUserId(id, userId).orElseThrow(() -> new ResumeNotFoundException(id));
 	}
 
 	/**
@@ -84,6 +87,7 @@ public class ResumeService {
 		return document;
 	}
 
+	/** One dashboard card for a stored resume. */
 	private ResumeSummary summarize(ResumeDocument document) {
 		var profile = document.getProfile();
 		String title = firstNonBlank(
@@ -98,6 +102,7 @@ public class ResumeService {
 				.build();
 	}
 
+	/** The first value that has text, or null. */
 	private static String firstNonBlank(String... values) {
 		for (String value : values) {
 			if (value != null && !value.isBlank()) {

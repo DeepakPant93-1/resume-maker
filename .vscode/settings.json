@@ -5,6 +5,17 @@
     "**/*.pyc": true,
     "**/*.pyo": true,
     "**/*.pyd": true,
-    "**/.Python": true
-  }
+    "**/.Python": true,
+    "**/.venv": true,
+    "**/target": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/node_modules": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "**/.mvn": true,
+    "**/.gradle": true,
+    "**/.idea": true,
+  },
+  "java.configuration.updateBuildConfiguration": "interactive"
 }

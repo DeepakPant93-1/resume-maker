@@ -2,24 +2,21 @@ package com.learning.resumemaker.model;
 
 import java.util.List;
 
-import lombok.AllArgsConstructor;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-/** Payload the UI sends to create/update a resume. The id is never part of it. */
-@Data
+/** Payload the UI sends to create or update a resume. The id is never part of it. */
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class ResumeRequest {
-
-	private Metadata metadata;
-	private Profile profile;
-	private List<Experience> experience;
-	private List<Education> education;
-	private Skills skills;
-	private List<Project> projects;
-	private List<Certification> certifications;
-	private List<SpokenLanguage> spokenLanguages;
+@Schema(description = "A resume to create, update, score or summarize")
+public record ResumeRequest(
+		@Valid Metadata metadata,
+		@Valid Profile profile,
+		@Size(max = 50) List<@Valid Experience> experience,
+		@Size(max = 50) List<@Valid Education> education,
+		@Valid Skills skills,
+		@Size(max = 50) List<@Valid Project> projects,
+		@Size(max = 50) List<@Valid Certification> certifications,
+		@Size(max = 50) List<@Valid SpokenLanguage> spokenLanguages) {
 }

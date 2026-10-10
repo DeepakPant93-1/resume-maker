@@ -1,12 +1,16 @@
 package com.learning.resumemaker.exception;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(HttpStatus.CONFLICT)
-public class EmailAlreadyUsedException extends RuntimeException {
+/** Thrown when registering an email that already has an account. */
+public class EmailAlreadyUsedException extends BaseException {
 
+	/**
+	 * Creates the exception.
+	 *
+	 * @param message message shown to the client
+	 */
 	public EmailAlreadyUsedException(String message) {
-		super(message);
+		super(HttpStatus.CONFLICT, message);
 	}
 }

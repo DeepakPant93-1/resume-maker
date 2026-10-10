@@ -73,8 +73,8 @@ class AuthServiceTest {
 		assertThat(encoder.matches("correct horse", user.getPasswordHash())).isTrue();
 		assertThat(user.getCreatedAt()).isEqualTo(NOW);
 		assertThat(user.getLastLoginAt()).isEqualTo(NOW);
-		assertThat(response.getToken()).isEqualTo("signed-token");
-		assertThat(response.getUser().getId()).isEqualTo("u1");
+		assertThat(response.token()).isEqualTo("signed-token");
+		assertThat(response.user().id()).isEqualTo("u1");
 		assertThat(response.toString()).doesNotContain(user.getPasswordHash());
 	}
 
@@ -85,18 +85,13 @@ class AuthServiceTest {
 
 		AuthResponse response = service().register(new RegisterRequest(null, "priya@example.com", "long enough"));
 
-		assertThat(response.getUser().getName()).isEqualTo("priya");
+		assertThat(response.user().name()).isEqualTo("priya");
 	}
 
 	@Test
-	void registerRejectsABadEmailAShortPasswordAndATooLongPasswordWithoutSavingAnything() {
-		assertThatThrownBy(() -> service().register(new RegisterRequest("A", "not-an-email", "long enough")))
-				.isInstanceOf(InvalidRequestException.class).hasMessageContaining("email");
-		assertThatThrownBy(() -> service().register(new RegisterRequest("A", "a@example.com", "short")))
-				.isInstanceOf(InvalidRequestException.class).hasMessageContaining("at least 8");
+	void registerRejectsAPasswordLongerThanBcryptCanUseWithoutSavingAnything() {
 		assertThatThrownBy(() -> service().register(new RegisterRequest("A", "a@example.com", "x".repeat(73))))
 				.isInstanceOf(InvalidRequestException.class).hasMessageContaining("too long");
-		assertThatThrownBy(() -> service().register(null)).isInstanceOf(InvalidRequestException.class);
 		verifyNoInteractions(jwtService);
 		verify(users, never()).save(any());
 	}
@@ -126,8 +121,8 @@ class AuthServiceTest {
 
 		AuthResponse response = service().login(new LoginRequest(" SURAJ@example.com ", "correct horse"));
 
-		assertThat(response.getToken()).isEqualTo("signed-token");
-		assertThat(response.getUser().getEmail()).isEqualTo("suraj@example.com");
+		assertThat(response.token()).isEqualTo("signed-token");
+		assertThat(response.user().email()).isEqualTo("suraj@example.com");
 		assertThat(user.getLastLoginAt()).isEqualTo(NOW);
 		verify(users).save(user);
 	}
@@ -151,8 +146,9 @@ class AuthServiceTest {
 
 	@Test
 	void profileOfADeletedUserIsRefused() {
+		UserContext.setUserId("gone");
 		when(users.findById("gone")).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service().profile("gone")).isInstanceOf(AuthenticationFailedException.class);
+		assertThatThrownBy(() -> service().getProfile()).isInstanceOf(AuthenticationFailedException.class);
 	}
 }

@@ -1,16 +1,26 @@
 package com.learning.resumemaker.exception;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ResponseStatus(HttpStatus.BAD_REQUEST)
-public class InvalidResumeFileException extends RuntimeException {
+/** Thrown when an uploaded resume file is missing, is not a PDF or cannot be read. */
+public class InvalidResumeFileException extends BaseException {
 
+	/**
+	 * Creates the exception.
+	 *
+	 * @param message message shown to the client
+	 */
 	public InvalidResumeFileException(String message) {
-		super(message);
+		super(HttpStatus.BAD_REQUEST, message);
 	}
 
+	/**
+	 * Creates the exception with the failure that caused it.
+	 *
+	 * @param message message shown to the client
+	 * @param cause   the underlying failure
+	 */
 	public InvalidResumeFileException(String message, Throwable cause) {
-		super(message, cause);
+		super(HttpStatus.BAD_REQUEST, message, cause);
 	}
 }

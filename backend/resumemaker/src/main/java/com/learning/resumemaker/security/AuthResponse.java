@@ -2,19 +2,17 @@ package com.learning.resumemaker.security;
 
 import java.time.Instant;
 
-import lombok.AllArgsConstructor;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 /** Result of a successful login or registration: the token to send on every later call, and who it belongs to. */
-@Data
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class AuthResponse {
+@Schema(description = "Token and user after a successful login or registration")
+public record AuthResponse(String token, Instant expiresAt, UserProfile user) {
 
-	private String token;
-	private Instant expiresAt;
-	private UserProfile user;
+	/** Hides the token, so a logged response never leaks it. */
+	@Override
+	public String toString() {
+		return "AuthResponse[expiresAt=" + expiresAt + ", user=" + user + "]";
+	}
 }

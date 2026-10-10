@@ -24,6 +24,8 @@ import com.learning.resumemaker.model.Project;
 import com.learning.resumemaker.model.ResumeRequest;
 import com.learning.resumemaker.model.Skills;
 
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -55,6 +57,12 @@ public class ResumeParser {
 		HEADINGS.put("certifications", List.of("certifications", "certificates", "licenses", "courses"));
 	}
 
+	/**
+	 * Reads a PDF and maps its text to a resume.
+	 *
+	 * @param pdf the PDF bytes
+	 * @throws InvalidResumeFileException if the PDF cannot be read
+	 */
 	public ResumeRequest parse(InputStream pdf) {
 		try (PDDocument document = Loader.loadPDF(pdf.readAllBytes())) {
 			String text = new PDFTextStripper().getText(document);
@@ -64,18 +72,17 @@ public class ResumeParser {
 			}
 			return parseText(text);
 		} catch (IOException e) {
-			log.error("PDFBox failed to read the file", e);
 			throw new InvalidResumeFileException("Could not read the PDF file", e);
 		}
 	}
 
+	/** Parses the text of a resume (package-private for tests). */
 	ResumeRequest parseText(String text) {
 		List<String> lines = text.lines().map(String::strip).filter(l -> !l.isEmpty()).toList();
 		Map<String, List<String>> sections = splitSections(lines);
 		List<String> header = sections.getOrDefault("header", List.of());
 
-		Profile profile = parseProfile(header, text);
-		profile.setSummary(String.join(" ", sections.getOrDefault("summary", List.of())));
+		Profile profile = parseProfile(header, text, String.join(" ", sections.getOrDefault("summary", List.of())));
 		log.debug("Detected sections: {}", sections.keySet());
 
 		ResumeRequest parsed = ResumeRequest.builder()
@@ -87,8 +94,8 @@ public class ResumeParser {
 				.certifications(parseCertifications(sections.getOrDefault("certifications", List.of())))
 				.build();
 		log.info("Parsed resume: {} experience, {} education, {} projects, {} certifications",
-				parsed.getExperience().size(), parsed.getEducation().size(), parsed.getProjects().size(),
-				parsed.getCertifications().size());
+				parsed.experience().size(), parsed.education().size(), parsed.projects().size(),
+				parsed.certifications().size());
 		return parsed;
 	}
 
@@ -107,6 +114,7 @@ public class ResumeParser {
 		return sections;
 	}
 
+	/** Finds the section a heading line starts, or null. */
 	private String headingOf(String line) {
 		String normalized = line.replaceAll("[:\\s]+$", "").toLowerCase(Locale.ROOT);
 		if (normalized.length() > 30) {
@@ -118,22 +126,26 @@ public class ResumeParser {
 				.findFirst().orElse(null);
 	}
 
-	private Profile parseProfile(List<String> header, String fullText) {
-		Profile profile = new Profile();
-		profile.setFullName(header.isEmpty() ? null : header.get(0));
-		profile.setEmail(find(EMAIL, fullText));
-		profile.setLinkedin(find(LINKEDIN, fullText));
-		profile.setPhone(find(PHONE, String.join("\n", header)));
+	/** Reads the profile section. */
+	private Profile parseProfile(List<String> header, String fullText, String summary) {
 		// First non-name header line without contact details is most likely the job title.
-		header.stream().skip(1)
+		String jobTitle = header.stream().skip(1)
 				.filter(l -> !EMAIL.matcher(l).find() && !PHONE.matcher(l).find() && !LINKEDIN.matcher(l).find())
-				.findFirst().ifPresent(profile::setJobTitle);
-		return profile;
+				.findFirst().orElse(null);
+		return Profile.builder()
+				.fullName(header.isEmpty() ? null : header.get(0))
+				.email(find(EMAIL, fullText))
+				.linkedin(find(LINKEDIN, fullText))
+				.phone(find(PHONE, String.join("\n", header)))
+				.jobTitle(jobTitle)
+				.summary(summary)
+				.build();
 	}
 
+	/** Reads the experience section. */
 	private List<Experience> parseExperience(List<String> lines) {
 		List<Experience> jobs = new ArrayList<>();
-		Experience job = null;
+		JobDraft job = null;
 		StringBuilder achievements = new StringBuilder();
 		String pendingTitle = null;
 		for (int i = 0; i < lines.size(); i++) {
@@ -148,10 +160,10 @@ public class ResumeParser {
 			if (range.find()) {
 				if (job != null) {
 					job.setAchievements(achievements.toString().strip());
-					jobs.add(job);
+					jobs.add(job.build());
 				}
 				achievements.setLength(0);
-				job = new Experience();
+				job = new JobDraft();
 				job.setStartDate(range.group(1));
 				job.setEndDate(range.group(2));
 				job.setCurrent(range.group(2).matches("(?i)present|current|now"));
@@ -180,19 +192,20 @@ public class ResumeParser {
 		}
 		if (job != null) {
 			job.setAchievements(achievements.toString().strip());
-			jobs.add(job);
+			jobs.add(job.build());
 		}
 		return jobs;
 	}
 
+	/** Reads the education section. */
 	private List<Education> parseEducation(List<String> lines) {
-		List<Education> items = new ArrayList<>();
-		Education edu = null;
+		List<EducationDraft> items = new ArrayList<>();
+		EducationDraft edu = null;
 		for (String line : lines) {
 			Matcher range = DATE_RANGE.matcher(line);
 			boolean isDegree = line.matches("(?i).*\\b(b\\.?tech|m\\.?tech|b\\.?e|b\\.?sc|m\\.?sc|bachelor|master|ph\\.?d|diploma|mba|bca|mca)\\b.*");
 			if (isDegree || edu == null) {
-				edu = new Education();
+				edu = new EducationDraft();
 				items.add(edu);
 				edu.setDegree(range.find() ? line.substring(0, range.start()).strip() : line);
 			}
@@ -206,9 +219,10 @@ public class ResumeParser {
 				edu.setGrade(line);
 			}
 		}
-		return items;
+		return items.stream().map(EducationDraft::build).toList();
 	}
 
+	/** Reads the skills section. */
 	private Skills parseSkills(List<String> lines) {
 		List<String> languages = new ArrayList<>();
 		List<String> frameworks = new ArrayList<>();
@@ -233,6 +247,7 @@ public class ResumeParser {
 		return Skills.builder().languages(languages).frameworks(frameworks).tools(tools).build();
 	}
 
+	/** Reads the projects section. */
 	private List<Project> parseProjects(List<String> lines) {
 		List<Project> projects = new ArrayList<>();
 		Project project = null;
@@ -241,10 +256,10 @@ public class ResumeParser {
 			String lower = line.toLowerCase(Locale.ROOT);
 			boolean bullet = BULLET.matcher(line).find();
 			if (project != null && (lower.startsWith("technologies") || lower.startsWith("tech stack"))) {
-				project.setTechnologies(line.substring(line.indexOf(':') + 1).strip());
+				project = project.toBuilder().technologies(line.substring(line.indexOf(':') + 1).strip()).build();
 			} else if (!bullet && (project == null || description.length() > 0)) {
 				if (project != null) {
-					project.setDescription(description.toString().strip());
+					project = project.toBuilder().description(description.toString().strip()).build();
 					projects.add(project);
 					description.setLength(0);
 				}
@@ -254,12 +269,13 @@ public class ResumeParser {
 			}
 		}
 		if (project != null) {
-			project.setDescription(description.toString().strip());
+			project = project.toBuilder().description(description.toString().strip()).build();
 			projects.add(project);
 		}
 		return projects;
 	}
 
+	/** Reads the certifications section. */
 	private List<Certification> parseCertifications(List<String> lines) {
 		return lines.stream()
 				.map(l -> BULLET.matcher(l).replaceFirst(""))
@@ -279,6 +295,40 @@ public class ResumeParser {
 				.toList();
 	}
 
+	/** An experience entry being filled in while its lines are read. */
+	@Getter
+	@Setter
+	private static final class JobDraft {
+		private String jobTitle;
+		private String company;
+		private String startDate;
+		private String endDate;
+		private boolean current;
+		private String achievements;
+
+		/** The finished entry. */
+		Experience build() {
+			return new Experience(jobTitle, company, startDate, endDate, current, achievements);
+		}
+	}
+
+	/** An education entry being filled in while its lines are read. */
+	@Getter
+	@Setter
+	private static final class EducationDraft {
+		private String degree;
+		private String university;
+		private String startYear;
+		private String endYear;
+		private String grade;
+
+		/** The finished entry. */
+		Education build() {
+			return new Education(degree, university, startYear, endYear, grade, null);
+		}
+	}
+
+	/** First match of the pattern in the text, or null. */
 	private static String find(Pattern pattern, String text) {
 		Matcher m = pattern.matcher(text);
 		return m.find() ? m.group().strip() : null;

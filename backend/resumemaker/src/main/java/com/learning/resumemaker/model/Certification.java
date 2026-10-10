@@ -1,16 +1,13 @@
 package com.learning.resumemaker.model;
 
-import lombok.AllArgsConstructor;
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Size;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@Data
+/** One certification. */
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class Certification {
-
-	private String name;
-	private String issuer;
+@Schema(description = "One certification entry")
+public record Certification(
+		@Size(max = 200) String name,
+		@Size(max = 200) String issuer) {
 }

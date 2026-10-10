@@ -13,6 +13,8 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -28,6 +30,7 @@ import com.learning.resumemaker.model.ResumeRequest;
 import com.learning.resumemaker.model.ResumeResponse;
 import com.learning.resumemaker.model.ResumeSummary;
 import com.learning.resumemaker.repository.ResumeRepository;
+import com.learning.resumemaker.security.UserContext;
 
 @ExtendWith(MockitoExtension.class)
 class ResumeServiceTest {
@@ -39,6 +42,16 @@ class ResumeServiceTest {
 	ResumeRepository repository;
 	@Mock
 	AtsService atsService;
+
+	@BeforeEach
+	void signIn() {
+		UserContext.setUserId("u1");
+	}
+
+	@AfterEach
+	void signOut() {
+		UserContext.clear();
+	}
 
 	private ResumeService service() {
 		return new ResumeService(repository, new ResumeMapper(), atsService, Clock.fixed(NOW, ZoneOffset.UTC));
@@ -71,13 +84,13 @@ class ResumeServiceTest {
 		saveEchoesWithId();
 		when(atsService.scoreOrNull(any())).thenReturn(77);
 		// a client-supplied score is ignored: the server owns it
-		ResumeRequest request = ResumeRequest.builder().profile(request().getProfile())
+		ResumeRequest request = ResumeRequest.builder().profile(request().profile())
 				.metadata(Metadata.builder().atsScore(1).title("My title").build()).build();
 
-		ResumeResponse response = service().create("u1", request);
+		ResumeResponse response = service().createResume(request);
 
 		ResumeDocument document = saved();
-		assertThat(response.getId()).isEqualTo("new-id");
+		assertThat(response.id()).isEqualTo("new-id");
 		assertThat(saved().getUserId()).isEqualTo("u1"); // the new resume belongs to the caller
 		assertThat(document.getMetadata().getAtsScore()).isEqualTo(77);
 		assertThat(document.getMetadata().getTitle()).isEqualTo("My title");
@@ -90,7 +103,7 @@ class ResumeServiceTest {
 		saveEchoesWithId();
 		when(atsService.scoreOrNull(any())).thenReturn(null);
 
-		service().create("u1", request());
+		service().createResume(request());
 
 		assertThat(saved().getMetadata().getAtsScore()).isNull();
 	}
@@ -102,7 +115,7 @@ class ResumeServiceTest {
 		saveEchoesWithId();
 		when(atsService.scoreOrNull(any())).thenReturn(90);
 
-		service().update("u1", "r1", request());
+		service().updateResume("r1", request());
 
 		ResumeDocument document = saved();
 		assertThat(document.getId()).isEqualTo("r1");
@@ -119,7 +132,7 @@ class ResumeServiceTest {
 		saveEchoesWithId();
 		when(atsService.scoreOrNull(any())).thenReturn(null);
 
-		service().update("u1", "r1", request());
+		service().updateResume("r1", request());
 
 		assertThat(saved().getMetadata().getAtsScore()).isEqualTo(64);
 	}
@@ -128,8 +141,8 @@ class ResumeServiceTest {
 	void updateAndGetFailForAnUnknownResume() {
 		when(repository.findByIdAndUserId("nope", "u1")).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service().update("u1", "nope", request())).isInstanceOf(ResumeNotFoundException.class);
-		assertThatThrownBy(() -> service().get("u1", "nope")).isInstanceOf(ResumeNotFoundException.class);
+		assertThatThrownBy(() -> service().updateResume("nope", request())).isInstanceOf(ResumeNotFoundException.class);
+		assertThatThrownBy(() -> service().getResume("nope")).isInstanceOf(ResumeNotFoundException.class);
 		verify(repository, never()).save(any());
 	}
 
@@ -146,21 +159,22 @@ class ResumeServiceTest {
 						.profile(ResumeDocument.Profile.builder().jobTitle("Platform Engineer").fullName("X").build())
 						.build()));
 
-		List<ResumeSummary> list = service().list("u1");
+		List<ResumeSummary> list = service().listResumes();
 
-		assertThat(list).extracting(ResumeSummary::getId).containsExactly("new", "role", "old", "undated");
-		assertThat(list).extracting(ResumeSummary::getTitle)
+		assertThat(list).extracting(ResumeSummary::id).containsExactly("new", "role", "old", "undated");
+		assertThat(list).extracting(ResumeSummary::title)
 				.containsExactly("Chosen", "Platform Engineer", "Only Name", "Untitled resume");
-		assertThat(list.get(0).getAtsScore()).isEqualTo(88);
-		assertThat(list.get(1).getAtsScore()).isNull();
+		assertThat(list.get(0).atsScore()).isEqualTo(88);
+		assertThat(list.get(1).atsScore()).isNull();
 	}
 
 	@Test
 	void anotherUsersResumeLooksLikeOneThatDoesNotExist() {
+		UserContext.setUserId("intruder");
 		when(repository.findByIdAndUserId("r1", "intruder")).thenReturn(Optional.empty());
 
-		assertThatThrownBy(() -> service().get("intruder", "r1")).isInstanceOf(ResumeNotFoundException.class);
-		assertThatThrownBy(() -> service().update("intruder", "r1", request())).isInstanceOf(ResumeNotFoundException.class);
+		assertThatThrownBy(() -> service().getResume("r1")).isInstanceOf(ResumeNotFoundException.class);
+		assertThatThrownBy(() -> service().updateResume("r1", request())).isInstanceOf(ResumeNotFoundException.class);
 		verify(repository, never()).save(any());
 	}
 }

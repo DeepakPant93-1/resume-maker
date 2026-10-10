@@ -3,7 +3,6 @@ package com.learning.resumemaker.service;
 import org.springframework.stereotype.Service;
 
 import com.learning.resumemaker.client.AgentClient;
-import com.learning.resumemaker.exception.InvalidRequestException;
 import com.learning.resumemaker.model.SummaryRequest;
 import com.learning.resumemaker.model.SummaryResponse;
 
@@ -18,16 +17,15 @@ public class SummaryService {
 
 	private final AgentClient agentClient;
 
-	/** Works on the resume exactly as sent, so unsaved edits count. Nothing is stored. */
-	public SummaryResponse write(SummaryRequest request) {
-		if (request == null || request.getResume() == null) {
-			log.warn("Summary rejected: no resume in the request");
-			throw new InvalidRequestException("A resume is required");
-		}
-		String existing = request.getSummary();
-		existing = existing == null || existing.isBlank() ? null : existing;
+	/**
+	 * Works on the resume exactly as sent, so unsaved edits count. Nothing is stored.
+	 *
+	 * @param request the resume and the summary typed so far (blank means write a new one)
+	 * @return the written summary
+	 */
+	public SummaryResponse writeSummary(SummaryRequest request) {
+		String existing = request.summary() == null || request.summary().isBlank() ? null : request.summary();
 		log.info("Writing summary ({})", existing == null ? "new" : "improving " + existing.length() + " chars");
-		return agentClient.writeSummary(
-				SummaryRequest.builder().resume(request.getResume()).summary(existing).build());
+		return agentClient.writeSummary(SummaryRequest.builder().resume(request.resume()).summary(existing).build());
 	}
 }

@@ -25,48 +25,51 @@ import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
-import org.springframework.security.web.AuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Every /api call needs a valid login token (JWT, signed with HS256) except register and login.
+ * Global security: every call needs a valid login token (JWT, signed with HS256) except the public paths below.
  * The API is stateless: no session, the token is checked on every request.
  */
 @Slf4j
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 @EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfig {
+
+	private static final String[] PUBLIC_PATHS = { "/api/auth/register", "/api/auth/login", "/error",
+			"/actuator/health", "/actuator/health/**", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**" };
 
 	public static final String ISSUER = "resume-maker";
 	private static final int MIN_SECRET_BYTES = 32; // HS256 needs a 256-bit key
 
+	private final RestAuthenticationEntryPoint entryPoint;
+
+	/** The one filter chain: public paths are whitelisted, everything else needs a valid bearer token. */
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-		AuthenticationEntryPoint unauthorized = (request, response, exception) -> {
-			// The reason says whether the token was missing, expired, edited or signed with another key. The token is never logged.
-			log.warn("Rejected {} {}: {}", request.getMethod(), request.getRequestURI(), exception.getMessage());
-			response.setStatus(401);
-			response.setContentType("application/json");
-			response.getWriter().write("{\"message\":\"Please log in again: the login token is missing, invalid or expired\"}");
-		};
-		log.info("Security: every /api call needs a login token except register and login");
+		log.info("Security: every call needs a login token except the whitelisted public paths");
 		return http
 				.csrf(AbstractHttpConfigurer::disable) // stateless API with bearer tokens, no cookies to forge
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(requests -> requests
-						.requestMatchers("/api/auth/register", "/api/auth/login", "/error").permitAll()
+						.requestMatchers(PUBLIC_PATHS).permitAll()
 						.anyRequest().authenticated())
-				.exceptionHandling(handling -> handling.authenticationEntryPoint(unauthorized))
+				.exceptionHandling(handling -> handling.authenticationEntryPoint(entryPoint))
 				.oauth2ResourceServer(resource -> resource.jwt(Customizer.withDefaults())
-						.authenticationEntryPoint(unauthorized))
+						.authenticationEntryPoint(entryPoint))
+				.addFilterAfter(new JwtFilter(), BearerTokenAuthenticationFilter.class)
 				.build();
 	}
 
+	/** The HS256 signing key, built from the configured secret. */
 	@Bean
 	public SecretKey jwtSecretKey(JwtProperties properties) {
 		byte[] secret = properties.secret().getBytes(StandardCharsets.UTF_8);
@@ -79,6 +82,7 @@ public class SecurityConfig {
 		return new SecretKeySpec(secret, "HmacSHA256");
 	}
 
+	/** Signs the login tokens. */
 	@Bean
 	public JwtEncoder jwtEncoder(SecretKey jwtSecretKey) {
 		return new NimbusJwtEncoder(new ImmutableSecret<>(jwtSecretKey));
@@ -95,6 +99,7 @@ public class SecurityConfig {
 		return decoder;
 	}
 
+	/** BCrypt for password hashes. */
 	@Bean
 	public PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
