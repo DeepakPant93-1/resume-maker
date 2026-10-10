@@ -5,7 +5,7 @@ from typing import Any
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
 
-from app.agents.summary_writer import SummaryWriterAgent
+from app.agents.summary import SummaryWriterAgent
 from app.api.base import BaseRoutes
 from app.core.llm import ModelFactory
 
