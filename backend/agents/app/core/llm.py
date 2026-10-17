@@ -15,7 +15,7 @@ class ModelFactory:
     """Builds the main chat model and its fallback for one `Settings`."""
 
     # Tasks that may use their own model: tier -> the Settings field that names it.
-    TIER_SETTINGS = {"summary": "summary_model", "rewrite": "rewrite_model"}
+    TIER_SETTINGS = {"summary": "summary_model", "rewrite": "rewrite_model", "parse": "parse_model"}
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
         self.settings = settings or get_settings()
@@ -73,11 +73,18 @@ class ModelFactory:
         return "gemini" if self.settings.resolved_provider() == "anthropic" else "anthropic"
 
     def _has_key(self, provider: str) -> bool:
+        if provider == "ollama":
+            return False  # never a silent fallback; set AGENTS_FALLBACK_MODEL to use it explicitly
         key = self.settings.google_api_key if provider == "gemini" else self.settings.anthropic_api_key
         return bool(key)
 
     def _init(self, provider: str, model: str) -> BaseChatModel:
         limits = {"timeout": self.settings.llm_timeout_seconds, "max_retries": self.settings.llm_max_retries}
+        if provider == "ollama":  # langchain-ollama takes no max_retries
+            return init_chat_model(
+                model, model_provider="ollama", base_url=self.settings.ollama_base_url,
+                client_kwargs={"timeout": self.settings.llm_timeout_seconds},
+            )
         if provider == "anthropic":
             return init_chat_model(
                 model, model_provider="anthropic", api_key=self.settings.anthropic_api_key, **limits

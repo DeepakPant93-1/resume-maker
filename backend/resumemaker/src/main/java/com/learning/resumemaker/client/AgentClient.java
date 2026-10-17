@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import com.learning.resumemaker.model.AtsReport;
 import com.learning.resumemaker.model.AtsRequest;
+import com.learning.resumemaker.model.ParseRequest;
+import com.learning.resumemaker.model.ResumeRequest;
 import com.learning.resumemaker.model.SummaryRequest;
 import com.learning.resumemaker.model.SummaryResponse;
 
@@ -20,4 +22,8 @@ public interface AgentClient {
 	/** One model call: a new professional summary for the resume, or an improved version of the one given. */
 	@PostMapping("/api/summary")
 	SummaryResponse writeSummary(@RequestBody SummaryRequest request);
+
+	/** One model call: the raw text of a resume mapped into a structured resume, with the content unchanged. */
+	@PostMapping("/api/parse")
+	ResumeRequest parseResume(@RequestBody ParseRequest request);
 }

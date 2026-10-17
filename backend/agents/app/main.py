@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.ats import router as ats_router
+from app.api.parse import router as parse_router
 from app.api.runs import router as runs_router, run_routes
 from app.api.summary import router as summary_router
 from app.core.config import get_settings
@@ -35,13 +36,14 @@ def _models(settings) -> str:
         return (f"provider={settings.resolved_provider()}, model={factory.primary_name()}, "
                 f"fallback={factory.fallback_name() or 'none'}")
     except ValueError:
-        return "provider=NOT CONFIGURED (set GOOGLE_API_KEY or ANTHROPIC_API_KEY)"
+        return "provider=NOT CONFIGURED (set GOOGLE_API_KEY or ANTHROPIC_API_KEY, or AGENTS_PROVIDER=ollama with AGENTS_OLLAMA_BASE_URL)"
 
 
 app = FastAPI(title="Resume Maker Agent Service", lifespan=lifespan)
 app.include_router(runs_router)
 app.include_router(ats_router)
 app.include_router(summary_router)
+app.include_router(parse_router)
 
 
 @app.get("/health")
