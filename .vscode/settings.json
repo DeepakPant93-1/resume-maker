@@ -1,9 +1,23 @@
 {
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/agents/.venv/bin/python",
   "files.exclude": {
     "**/__pycache__": true,
     "**/*.pyc": true,
     "**/*.pyo": true,
     "**/*.pyd": true,
-    "**/.Python": true
-  }
+    "**/.Python": true,
+    "**/.venv": true,
+    "**/target": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/node_modules": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "**/.mvn": true,
+    "**/.gradle": true,
+    "**/.idea": true,
+  },
+  "java.configuration.updateBuildConfiguration": "interactive",
+  "java.jdt.ls.vmargs": "-XX:+UseParallelGC -XX:GCTimeRatio=4 -XX:AdaptiveSizePolicyWeight=90 -Dsun.zip.disableMemoryMapping=true -Xmx16G -Xms100m -Xlog:disable",
+  "java.compile.nullAnalysis.mode": "automatic"
 }

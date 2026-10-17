@@ -1,0 +1,11 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "ResumemakerApplication",
+            "request": "launch",
+            "mainClass": "com.learning.resumemaker.ResumemakerApplication",
+            "projectName": "resumemaker"
+        }
+    ]
+}

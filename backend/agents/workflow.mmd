@@ -1,0 +1,27 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	analyze_job(analyze_job)
+	gap_analyst(gap_analyst)
+	rewriter(rewriter)
+	ask_user(ask_user)
+	reviewer(reviewer)
+	finalize(finalize)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> analyze_job;
+	analyze_job --> gap_analyst;
+	ask_user --> rewriter;
+	gap_analyst --> rewriter;
+	reviewer -.-> finalize;
+	reviewer -.-> rewriter;
+	rewriter -.-> ask_user;
+	rewriter -.-> reviewer;
+	finalize --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
+

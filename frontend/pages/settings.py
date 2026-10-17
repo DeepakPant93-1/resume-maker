@@ -55,7 +55,8 @@ def upgrade_dialog():
 def render():
     css(_CSS)
     user = st.session_state.user
-    user.setdefault("location", "Noida, India")
+    user.setdefault("role", "")
+    user.setdefault("location", "")
     page_header("Settings & Profile", "Configure resume defaults, optimization engines, and manage billing tier.")
 
     # ---- Profile ----
@@ -66,7 +67,7 @@ def render():
             html(f'<div class="r-avatar-lg">{initials}</div>')
         with info:
             html(f'<div style="font-weight:600;font-size:1.1rem">{user["name"]}</div>'
-                 f'<div class="r-muted">{user["role"]} • {user["location"]}</div>')
+                 f'<div class="r-muted">{" • ".join(x for x in (user["email"], user["role"], user["location"]) if x)}</div>')
         with btn:
             if st.button("Edit Profile", use_container_width=True, key="edit_profile"):
                 st.session_state.editing_profile = not st.session_state.get("editing_profile", False)
