@@ -60,6 +60,8 @@ class ResumeParserAgent:
         self._runnable = self._json_mode(model)
         if fallback:
             self._runnable = self._runnable.with_fallbacks([self._json_mode(fallback)])
+        # The provider's own retries give up at once on a 503; try the whole primary-then-fallback pair again with backoff.
+        self._runnable = self._runnable.with_retry(stop_after_attempt=3, wait_exponential_jitter=True)
 
     @staticmethod
     def _json_mode(model: BaseChatModel):

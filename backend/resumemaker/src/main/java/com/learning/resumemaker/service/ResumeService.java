@@ -47,6 +47,12 @@ public class ResumeService {
 		return mapper.toResponse(saved);
 	}
 
+	/** Deletes one of the signed-in user's resumes; someone else's looks exactly like one that does not exist. */
+	public void deleteResume(String id) {
+		repository.delete(findOwned(UserContext.requireUserId(), id));
+		log.info("Resume {} deleted", id);
+	}
+
 	/** One of the signed-in user's resumes; someone else's looks exactly like one that does not exist. */
 	public ResumeResponse getResume(String id) {
 		return mapper.toResponse(findOwned(UserContext.requireUserId(), id));

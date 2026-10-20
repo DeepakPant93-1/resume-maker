@@ -124,8 +124,7 @@ def _render_result(run):
             st.caption("No statements were produced.")
         for claim in claims:
             html(f'<div style="margin:0.5rem 0"><span class="r-badge soft">{_html.escape(claim.get("section") or "General")}</span>'
-                 f'&nbsp; {_html.escape(claim["text"])}'
-                 f'<div class="r-muted" style="margin-left:0.2rem">from your resume: {_html.escape(claim.get("source_ref") or "unknown")}</div></div>')
+                 f'&nbsp; {_html.escape(claim["text"])}</div>')
         if state.get("needs_user_input"):
             st.caption("Still needed from you: " + "; ".join(state["needs_user_input"]))
 
@@ -145,7 +144,7 @@ def _render_result(run):
         with again_col:
             if st.button("New run", use_container_width=True, key="run_again"):
                 _new_run()
-        st.caption("Applying replaces your summary and the bullets of each job that was rewritten. "
+        st.caption("Applying replaces your summary and adds the rewritten experience bullets to your most recent job. "
                    "Nothing is saved until you press Save in the editor.")
 
 
