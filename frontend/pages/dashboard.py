@@ -8,8 +8,6 @@ from datetime import datetime, timezone
 import streamlit as st
 from styles.theme import html, page_header, stat_card
 from utils.api_client import ApiError, delete_resume, get_resume, list_applications, list_resumes, to_editor_data
-from utils.resume_export import (DOCX_MIME, MARKDOWN_MIME, PDF_MIME, file_stem, to_docx, to_markdown,
-                                 to_pdf)
 
 _CSS = """
 <style>
@@ -96,22 +94,11 @@ def _open_resume(resume_id):
     _go("MyResumes")
 
 
-@st.dialog("Download resume")
-def _download_dialog(resume_id, title):
-    """Fetch the saved resume and offer it as a PDF, Word document or Markdown file."""
-    try:
-        data = to_editor_data(get_resume(resume_id))
-    except ApiError as e:
-        st.error(str(e))
-        return
-    st.caption(title)
-    stem = file_stem(data)
-    st.download_button("Download as PDF (.pdf)", to_pdf(data), f"{stem}.pdf", PDF_MIME,
-                       type="primary", use_container_width=True, key=f"dl_pdf_{resume_id}")
-    st.download_button("Download as Word (.docx)", to_docx(data), f"{stem}.docx", DOCX_MIME,
-                       use_container_width=True, key=f"dl_docx_{resume_id}")
-    st.download_button("Download as Markdown (.md)", to_markdown(data), f"{stem}.md", MARKDOWN_MIME,
-                       use_container_width=True, key=f"dl_md_{resume_id}")
+def _view_resume(resume_id, title):
+    """Open the resume viewer (pages/resume_view.py), starting on the default template."""
+    st.session_state.view_resume = {"id": resume_id, "title": title}
+    st.session_state.pop("view_template", None)
+    _go("ResumeView")
 
 
 @st.dialog("Delete resume")
@@ -201,10 +188,11 @@ def render():
             )
             if st.button("Open in editor", key=f"open_{r['id']}", use_container_width=True):
                 _open_resume(r["id"])
-            download, delete = st.columns(2)
-            with download:
-                if st.button("Download", key=f"download_{r['id']}", use_container_width=True):
-                    _download_dialog(r["id"], r["title"])
+            view, delete = st.columns(2)
+            with view:
+                if st.button("View", key=f"view_{r['id']}", icon=":material/visibility:", use_container_width=True,
+                             help="Preview this resume in different templates and download it as a PDF"):
+                    _view_resume(r["id"], r["title"])
             with delete:
                 if st.button("Delete", key=f"delete_{r['id']}", use_container_width=True):
                     _delete_dialog(r["id"], r["title"])

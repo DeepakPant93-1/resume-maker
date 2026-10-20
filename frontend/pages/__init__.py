@@ -7,6 +7,7 @@ from . import templates
 from . import ai_agents
 from . import applications
 from . import settings
+from . import resume_view
 
 __all__ = [
     "dashboard",
@@ -17,4 +18,5 @@ __all__ = [
     "ai_agents",
     "applications",
     "settings",
+    "resume_view",
 ]

@@ -41,7 +41,7 @@ Resume Maker transforms the resume adaptation process into a guided, interactive
 
 ### 4.4. Comparison & Export
 - **Side-by-Side Diff View**: Visual comparison showing original text vs. tailored recommendations.
-- **Multiple Export Formats**: Clean, ATS-friendly downloads in PDF, DOCX, and Markdown formats.
+- **PDF Export**: Clean, ATS-friendly PDF download (PDF is the only export format).
 
 ---
 

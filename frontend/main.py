@@ -9,7 +9,8 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import streamlit as st
 from styles.theme import apply_theme, html
-from pages import dashboard, create_resume, my_resumes, job_match, templates, ai_agents, applications, settings, login
+from pages import (dashboard, create_resume, my_resumes, job_match, templates, ai_agents, applications, settings, login,
+                   resume_view)
 from utils import auth
 from utils.api_client import ApiError, whoami
 
@@ -40,6 +41,7 @@ PAGES = {
     "AIAgents": ai_agents,
     "Applications": applications,
     "Settings": settings,
+    "ResumeView": resume_view,  # opened from the dashboard's View button, not in the sidebar
 }
 
 
@@ -141,9 +143,10 @@ def render_topbar():
 
 
 def in_focus_mode():
-    """The resume builder wizard is full-screen in Figma (no sidebar / search bar)."""
+    """The resume builder wizard is full-screen in Figma (no sidebar / search bar); so is the resume viewer."""
     page = st.session_state.page
-    return ((page == "CreateResume" and st.session_state.get("builder_mode") == "builder")
+    return (page == "ResumeView"
+            or (page == "CreateResume" and st.session_state.get("builder_mode") == "builder")
             or (page == "AIAgents" and st.session_state.get("agent_view") in ("chat", "run")))
 
 

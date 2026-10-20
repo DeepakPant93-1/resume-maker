@@ -8,7 +8,7 @@ from app.core.llm import ModelFactory
 
 @pytest.fixture(autouse=True)
 def _no_ambient_keys(monkeypatch):
-    for key in ("ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "AGENTS_PROVIDER", "AGENTS_FALLBACK_MODEL",
+    for key in ("ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY", "AGENTS_PROVIDER", "AGENTS_FALLBACK_MODEL",
                 "AGENTS_ORCHESTRATOR_MODEL", "AGENTS_SUMMARY_MODEL", "AGENTS_REWRITE_MODEL"):
         monkeypatch.delenv(key, raising=False)
 

@@ -1,5 +1,6 @@
 """Client for the Spring Boot resume API (backend/resumemaker)."""
 import os
+import re
 
 import requests
 
@@ -23,10 +24,11 @@ class ApiError(Exception):
         self.status_code = status_code
 
 
-def _call(method, path, timeout=TIMEOUT_SECONDS, on_bad_request=None, public=False, **kwargs):
+def _call(method, path, timeout=TIMEOUT_SECONDS, on_bad_request=None, public=False, raw=False, **kwargs):
     """Call the backend and return its JSON; any failure becomes an ApiError with a message fit for the UI.
 
-    Every call carries the login token, except `public` ones (login, register).
+    Every call carries the login token, except `public` ones (login, register). `raw` returns the response itself
+    instead of its JSON (for file downloads).
     """
     login_token = None if public else auth.token()
     if login_token:
@@ -36,6 +38,8 @@ def _call(method, path, timeout=TIMEOUT_SECONDS, on_bad_request=None, public=Fal
     except requests.RequestException:
         raise ApiError(f"Could not reach the backend at {API_URL}. Is it running?")
     if resp.ok:
+        if raw:
+            return resp
         return resp.json() if resp.content else None  # a 204 (delete) has no body
     if resp.status_code == 401 and not public:
         # The token expired or is no longer valid: forget it and send the user back to the login page.
@@ -93,6 +97,21 @@ def delete_resume(resume_id):
 def list_resumes():
     """Every saved resume as dashboard rows: {id, title, ats_score, updated_at}, most recently saved first."""
     return _call("GET", "/api/resumes")
+
+
+def list_templates():
+    """The LaTeX templates a resume can be downloaded in: [{id, name}], sorted by name."""
+    return _call("GET", "/api/templates")
+
+
+def download_resume(resume_id, template, fmt="pdf"):
+    """A saved resume in a template, as "pdf" (compiled by the backend) or "tex" (LaTeX source).
+
+    Returns (file_name, bytes of the file). A backend without a LaTeX engine raises ApiError 503 for "pdf".
+    """
+    resp = _call("GET", f"/api/resumes/{resume_id}/download", raw=True, params={"template": template, "format": fmt})
+    match = re.search(r'filename="?([^";]+)"?', resp.headers.get("Content-Disposition", ""))
+    return (match.group(1) if match else f"Resume.{fmt}"), resp.content
 
 
 def list_applications():

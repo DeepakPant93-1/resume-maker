@@ -43,7 +43,7 @@ class HealthyModel(BaseChatModel):
 
 @pytest.fixture(autouse=True)
 def _no_ambient_keys(monkeypatch):
-    for key in ("ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "AGENTS_PROVIDER", "AGENTS_FALLBACK_MODEL"):
+    for key in ("ANTHROPIC_API_KEY", "GOOGLE_API_KEY", "GROQ_API_KEY", "AGENTS_PROVIDER", "AGENTS_FALLBACK_MODEL"):
         monkeypatch.delenv(key, raising=False)
 
 
@@ -58,6 +58,32 @@ def test_no_fallback_when_only_one_provider_key_is_set():
 def test_fallback_is_the_other_provider_when_its_key_is_set():
     fallback = ModelFactory(_settings(GOOGLE_API_KEY="g-key", ANTHROPIC_API_KEY="a-key", provider="gemini")).build_fallback()
     assert type(fallback).__name__ == "ChatAnthropic"
+
+
+def test_groq_is_the_fallback_when_gemini_is_primary_and_groq_has_a_key():
+    factory = ModelFactory(_settings(GOOGLE_API_KEY="g-key", GROQ_API_KEY="q-key"))
+    assert factory.settings.resolved_provider() == "gemini"
+    assert type(factory.build_fallback()).__name__ == "ChatGroq"
+    assert factory.fallback_name() == "openai/gpt-oss-120b"
+
+
+def test_groq_gpt_oss_uses_low_reasoning_effort_so_replies_are_not_cut_off():
+    factory = ModelFactory(_settings(GROQ_API_KEY="q-key"))
+    assert factory.build_primary().reasoning_effort == "low"
+    assert factory._init("groq", "qwen/qwen3.8-27b").reasoning_effort is None
+
+
+def test_anthropic_is_preferred_over_groq_as_fallback():
+    fallback = ModelFactory(_settings(GOOGLE_API_KEY="g-key", ANTHROPIC_API_KEY="a-key", GROQ_API_KEY="q-key",
+                                      provider="gemini")).build_fallback()
+    assert type(fallback).__name__ == "ChatAnthropic"
+
+
+def test_groq_alone_is_auto_detected_as_primary():
+    factory = ModelFactory(_settings(GROQ_API_KEY="q-key"))
+    assert factory.settings.resolved_provider() == "groq"
+    assert type(factory.build_primary()).__name__ == "ChatGroq"
+    assert factory.build_fallback() is None
 
 
 def test_fallback_model_setting_uses_same_provider():

@@ -138,7 +138,6 @@ All CSS is in `frontend/styles/theme.py`. Update there for:
 ```
 streamlit>=1.28.1
 pandas>=2.1.1
-python-docx>=0.8.11
 pypdf>=3.17.1
 ```
 

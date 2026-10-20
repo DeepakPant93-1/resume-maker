@@ -1,10 +1,8 @@
-"""Turns a resume (in the editor's shape, see api_client.to_editor_data) into a downloadable file."""
+"""Turns a resume (in the editor's shape, see api_client.to_editor_data) into a downloadable PDF."""
 import io
 import re
 
 PDF_MIME = "application/pdf"
-DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-MARKDOWN_MIME = "text/markdown"
 
 
 def file_stem(data):
@@ -77,54 +75,6 @@ def _header(data):
     p = data.get("profile") or {}
     contact = " · ".join(p[k] for k in ("email", "phone", "location", "linkedin") if p.get(k))
     return p.get("full_name") or "Your Name", p.get("job_title") or "", contact
-
-
-def to_markdown(data):
-    """The resume as Markdown text."""
-    name, title, contact = _header(data)
-    out = [f"# {name}"]
-    if title:
-        out.append(f"**{title}**")
-    if contact:
-        out.append(contact)
-    for heading, rows in _sections(data):
-        out += ["", f"## {heading}"]
-        for kind, text, right in rows:
-            if kind == "entry":
-                out += ["", f"**{text}**" + (f" — {right}" if right else "")]
-            elif kind == "bullet":
-                out.append(f"- {text}")
-            else:
-                out.append(text)
-    return "\n".join(out) + "\n"
-
-
-def to_docx(data):
-    """The resume as the bytes of a Word document."""
-    from docx import Document
-    from docx.shared import Pt
-
-    doc = Document()
-    name, title, contact = _header(data)
-    doc.add_heading(name, level=0)
-    for line in (title, contact):
-        if line:
-            doc.add_paragraph(line)
-    for heading, rows in _sections(data):
-        doc.add_heading(heading, level=1)
-        for kind, text, right in rows:
-            if kind == "bullet":
-                doc.add_paragraph(text, style="List Bullet")
-            elif kind == "entry":
-                para = doc.add_paragraph()
-                para.add_run(text).bold = True
-                if right:
-                    para.add_run(f"  |  {right}").font.size = Pt(9)
-            else:
-                doc.add_paragraph(text)
-    buffer = io.BytesIO()
-    doc.save(buffer)
-    return buffer.getvalue()
 
 
 def to_pdf(data):

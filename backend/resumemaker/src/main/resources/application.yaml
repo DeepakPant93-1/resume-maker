@@ -29,6 +29,12 @@ app:
     secret: ${JWT_SECRET:dev-only-secret-change-me-before-deploying-0123456789}
     expiry: 8h
 
+  latex:
+    # Compiles the LaTeX templates to PDF. The Docker image installs it; locally install TeX Live / MacTeX, or point
+    # LATEX_COMMAND at the binary (e.g. /Library/TeX/texbin/pdflatex). Without it, only the .tex download works.
+    command: ${LATEX_COMMAND:pdflatex}
+    timeout: 30s
+
 agent:
   service:
     url: http://localhost:8000

@@ -1,0 +1,214 @@
+%===============================================================================
+% Modern resume template (FreeMarker + LaTeX)
+%-------------------------------------------------------------------------------
+% The layout of resume-v1.tex (the filled example), driven by data: Latin Modern
+% fonts, plain section headings, dates pushed right with \hfill.
+% (Never write a bracket-equals or bracket-hash pair in a comment: FreeMarker
+% would parse it as a placeholder or directive.)
+%
+% Apache FreeMarker template, square-bracket syntax, UTF-8; the data model root
+% is com.learning.resumemaker.document.ResumeDocument. See classic.tex for the
+% full list of fields and the rules every template follows: directives on their
+% own "%" lines, every placeholder in its own { } group, text through tex(),
+% links through url().
+%
+% Needs only pdflatex with geometry, hyperref and lmodern (the backend image
+% installs these). The filled example used enumitem for tight lists; that
+% package is not installed, so list spacing is set inside each itemize instead.
+%===============================================================================
+%
+% [#-- Escape LaTeX special characters and collapse line breaks to spaces. --]
+% [#function tex value=""]
+% [#local v = value?string?replace("\\", "\x0001")?replace("{", r"\{")?replace("}", r"\}")]
+% [#local v = v?replace("&", r"\&")?replace("%", r"\%")?replace("$", r"\$")?replace("#", r"\#")?replace("_", r"\_")]
+% [#local v = v?replace("~", r"\textasciitilde{}")?replace("^", r"\textasciicircum{}")]
+% [#local v = v?replace("<", r"\textless{}")?replace(">", r"\textgreater{}")?replace("|", r"\textbar{}")]
+% [#return v?replace("\x0001", r"\textbackslash{}")?replace(r"\s+", " ", "r")?trim]
+% [/#function]
+%
+% [#-- Make a value safe to use as an \href target. --]
+% [#function url value=""]
+% [#return value?string?trim?replace(r"[\\{}]", "", "r")?replace(r"%(?![0-9A-Fa-f]{2})", "%25", "r")?replace("%", r"\%")?replace(r"\s+", " ", "r")?replace(" ", r"\%20")]
+% [/#function]
+%
+% [#-- Full LinkedIn link, adding https:// when missing. --]
+% [#function linkedinUrl value=""]
+% [#local v = value?string?trim]
+% [#if v?matches(r"(?i)^https?://.*")][#return v][/#if]
+% [#return "https://" + v]
+% [/#function]
+%
+% [#-- Escape each non-empty part and join them, e.g. ["Jan 2024", "Present"] -> "Jan 2024 -- Present". --]
+% [#function joinTex parts sep]
+% [#local out = []]
+% [#list parts as part][#if part?has_content][#local out = out + [tex(part)]][/#if][/#list]
+% [#return out?join(sep)]
+% [/#function]
+%
+% [#-- End date of a job: "Present" for the current one. --]
+% [#function endLabel job]
+% [#if job.current!false][#return "Present"][/#if]
+% [#return job.endDate!""]
+% [/#function]
+%
+% [#-- Split a multi-line string into bullet lines (drops blanks and leading -, *, bullet signs). --]
+% [#function bullets text=""]
+% [#local items = []]
+% [#list text?string?split(r"\r?\n", "r") as raw]
+% [#local line = raw?trim?replace(r"^[-*•·]+\s*", "", "r")]
+% [#if line?has_content][#local items = items + [line]][/#if]
+% [/#list]
+% [#return items]
+% [/#function]
+%
+% [#-- "English (Fluent), Hindi (Native)", already escaped. --]
+% [#function spokenList items=[]]
+% [#local parts = []]
+% [#list items as sl]
+% [#if (sl.language)?has_content]
+% [#if (sl.proficiency)?has_content]
+% [#local parts = parts + [tex(sl.language) + " (" + tex(sl.proficiency) + ")"]]
+% [#else]
+% [#local parts = parts + [tex(sl.language)]]
+% [/#if]
+% [/#if]
+% [/#list]
+% [#return parts?join(", ")]
+% [/#function]
+%
+% [#assign p = profile!{}]
+% [#assign s = skills!{}]
+%
+% [#-- Contact lines: phone and email on the first, LinkedIn and location on the second; already escaped. --]
+% [#assign contact1 = []]
+% [#if (p.phone)?has_content][#assign contact1 = contact1 + [tex(p.phone)]][/#if]
+% [#if (p.email)?has_content][#assign contact1 = contact1 + [r"\href{mailto:" + url(p.email) + "}{" + tex(p.email) + "}"]][/#if]
+% [#assign contact2 = []]
+% [#if (p.linkedin)?has_content][#assign contact2 = contact2 + [r"\href{" + url(linkedinUrl(p.linkedin)) + "}{LinkedIn}"]][/#if]
+% [#if (p.location)?has_content][#assign contact2 = contact2 + [tex(p.location)]][/#if]
+%
+% [#-- Skill rows: label + escaped value, only the non-empty ones. --]
+% [#assign skillRows = []]
+% [#if (s.languages)?has_content][#assign skillRows = skillRows + [{"label": "Programming", "value": joinTex(s.languages, ", ")}]][/#if]
+% [#if (s.frameworks)?has_content][#assign skillRows = skillRows + [{"label": "Frameworks", "value": joinTex(s.frameworks, ", ")}]][/#if]
+% [#if (s.tools)?has_content][#assign skillRows = skillRows + [{"label": "Tools", "value": joinTex(s.tools, ", ")}]][/#if]
+% [#assign spoken = spokenList(spokenLanguages![])]
+% [#if spoken?has_content][#assign skillRows = skillRows + [{"label": "Languages", "value": spoken}]][/#if]
+%-------------------------------------------------------------------------------
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[margin=0.7in]{geometry}
+\usepackage[hidelinks]{hyperref}
+
+\setlength{\parindent}{0pt}
+\pagestyle{empty}
+
+\begin{document}
+
+\begin{center}
+% [#if (p.fullName)?has_content]
+{\LARGE\bfseries {[=tex(p.fullName)]}}\\[4pt]
+% [/#if]
+% [#if (p.jobTitle)?has_content]
+{\large {[=tex(p.jobTitle)]}}\\[4pt]
+% [/#if]
+% [#if contact1?has_content]
+{[=contact1?join(r" \quad $|$ \quad ")]}\\
+% [/#if]
+% [#if contact2?has_content]
+{[=contact2?join(r" \quad $|$ \quad ")]}
+% [/#if]
+\end{center}
+
+% [#if (p.summary)?has_content]
+\section*{Summary}
+
+{[=tex(p.summary)]}
+
+% [/#if]
+% [#if education?has_content]
+\section*{Education}
+
+% [#list education as edu]
+{\bfseries {[=tex(edu.university!)]}} \hfill {[=tex(edu.location!)]}
+% [#if (edu.degree)?has_content || (edu.grade)?has_content || (edu.startYear)?has_content || (edu.endYear)?has_content]
+\\
+{[=joinTex([edu.degree!, edu.grade!], "; ")]} \hfill {[=joinTex([edu.startYear!, edu.endYear!], " -- ")]}
+% [/#if]
+
+% [/#list]
+% [/#if]
+% [#if experience?has_content]
+\section*{Experience}
+
+% [#list experience as exp]
+{\bfseries {[=tex(exp.jobTitle!)]}} \hfill {[=joinTex([exp.startDate!, endLabel(exp)], " -- ")]}
+% [#if (exp.company)?has_content]
+\\
+{\itshape {[=tex(exp.company)]}}
+% [/#if]
+% [#assign items = bullets(exp.achievements!)]
+% [#if items?has_content]
+
+\begin{itemize}
+\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\parskip}{0pt}
+% [#list items as item]
+\item {[=tex(item)]}
+% [/#list]
+\end{itemize}
+% [/#if]
+
+% [/#list]
+% [/#if]
+% [#if projects?has_content]
+\section*{Projects}
+
+% [#list projects as proj]
+{\bfseries {[=tex(proj.name!)]}}
+% [#if (proj.technologies)?has_content]
+\\
+{\itshape {[=tex(proj.technologies)]}}
+% [/#if]
+% [#assign items = bullets(proj.description!)]
+% [#if items?has_content]
+
+\begin{itemize}
+\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\parskip}{0pt}
+% [#list items as item]
+\item {[=tex(item)]}
+% [/#list]
+\end{itemize}
+% [/#if]
+
+% [/#list]
+% [/#if]
+% [#if certifications?has_content]
+\section*{Certificates and Achievements}
+
+\begin{itemize}
+\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}\setlength{\parskip}{0pt}
+% [#list certifications as cert]
+\item {[=tex(cert.name!)]}%
+% [#if (cert.issuer)?has_content]
+: {[=tex(cert.issuer)]}%
+% [/#if]
+
+% [/#list]
+\end{itemize}
+
+% [/#if]
+% [#if skillRows?has_content]
+\section*{Technical Skills}
+
+% [#list skillRows as row]
+{\bfseries {[=row.label]}:} {[=row.value]}
+% [#sep]
+\\
+% [/#sep]
+% [/#list]
+
+% [/#if]
+\end{document}

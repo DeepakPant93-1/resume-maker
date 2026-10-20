@@ -36,7 +36,7 @@ def _models(settings) -> str:
         return (f"provider={settings.resolved_provider()}, model={factory.primary_name()}, "
                 f"fallback={factory.fallback_name() or 'none'}")
     except ValueError:
-        return "provider=NOT CONFIGURED (set GOOGLE_API_KEY or ANTHROPIC_API_KEY, or AGENTS_PROVIDER=ollama with AGENTS_OLLAMA_BASE_URL)"
+        return "provider=NOT CONFIGURED (set GOOGLE_API_KEY, ANTHROPIC_API_KEY or GROQ_API_KEY, or AGENTS_PROVIDER=ollama with AGENTS_OLLAMA_BASE_URL)"
 
 
 app = FastAPI(title="Resume Maker Agent Service", lifespan=lifespan)

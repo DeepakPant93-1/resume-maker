@@ -250,9 +250,7 @@ To make this fully functional, you'll need to add:
 ### 5. **Export Features**
 ```python
 # Download functionality:
-- PDF export
-- DOCX export
-- Markdown export
+- PDF export (the only export format)
 ```
 
 ---
