@@ -11,7 +11,8 @@ SUMMARY_TIMEOUT_SECONDS = 60  # one model call
 TIMEOUT_SECONDS = 15
 
 # The sections the editor keeps in session state, in the shape the backend expects.
-RESUME_SECTIONS = ("profile", "experience", "education", "skills", "projects", "certifications")
+RESUME_SECTIONS = ("metadata", "profile", "experience", "education", "skills", "projects", "certifications",
+                   "spoken_languages")
 
 
 class ApiError(Exception):
@@ -35,7 +36,7 @@ def _call(method, path, timeout=TIMEOUT_SECONDS, on_bad_request=None, public=Fal
     except requests.RequestException:
         raise ApiError(f"Could not reach the backend at {API_URL}. Is it running?")
     if resp.ok:
-        return resp.json()
+        return resp.json() if resp.content else None  # a 204 (delete) has no body
     if resp.status_code == 401 and not public:
         # The token expired or is no longer valid: forget it and send the user back to the login page.
         import streamlit as st
@@ -84,6 +85,11 @@ def save_resume(resume_id, data):
     return _call("POST", "/api/resumes", json=payload)
 
 
+def delete_resume(resume_id):
+    """Delete a saved resume. A resume that is already gone raises ApiError with status_code 404."""
+    _call("DELETE", f"/api/resumes/{resume_id}")
+
+
 def list_resumes():
     """Every saved resume as dashboard rows: {id, title, ats_score, updated_at}, most recently saved first."""
     return _call("GET", "/api/resumes")
@@ -127,7 +133,13 @@ def to_editor_data(resume):
     """Fill gaps (null fields from the parser) so the editor widgets always get strings and lists."""
     profile = resume.get("profile") or {}
     skills = resume.get("skills") or {}
+    metadata = resume.get("metadata") or {}
     return {
+        # Not editable yet, but kept so that Save writes the complete resume back instead of dropping them.
+        "metadata": {k: metadata.get(k) for k in ("title", "template")},
+        "spoken_languages": [
+            {k: lang.get(k) or "" for k in ("language", "proficiency")} for lang in resume.get("spoken_languages") or []
+        ],
         "profile": {k: profile.get(k) or "" for k in
                     ("full_name", "job_title", "email", "phone", "location", "linkedin", "summary")},
         "experience": [

@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -80,5 +81,15 @@ public class ResumeController {
 	public ResponseEntity<ResumeResponse> updateResume(@PathVariable String id,
 			@Valid @RequestBody ResumeRequest request) {
 		return ResponseEntity.ok(service.updateResume(id, request));
+	}
+
+	/** Deletes a resume. */
+	@Operation(summary = "Delete a resume")
+	@ApiResponse(responseCode = "204", description = "Deleted")
+	@ApiResponse(responseCode = "404", description = "No such resume")
+	@DeleteMapping("/{id}")
+	public ResponseEntity<Void> deleteResume(@PathVariable String id) {
+		service.deleteResume(id);
+		return ResponseEntity.noContent().build();
 	}
 }

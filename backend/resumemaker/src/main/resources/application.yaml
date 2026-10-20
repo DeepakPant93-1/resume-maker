@@ -10,6 +10,14 @@ spring:
     mongodb:
       # Lets the unique index on users.email be created, so two accounts can never share an email.
       auto-index-creation: true
+  cloud:
+    openfeign:
+      client:
+        config:
+          agent-service:
+            connect-timeout: 5000
+            # LLM calls are slow: a parse can take ~1 minute, and the agent retries a busy model before it answers.
+            read-timeout: 180000
   servlet:
     multipart:
       max-file-size: 10MB
