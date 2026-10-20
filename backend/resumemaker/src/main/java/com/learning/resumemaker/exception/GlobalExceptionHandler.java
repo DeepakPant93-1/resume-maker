@@ -9,8 +9,10 @@ import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import com.learning.resumemaker.model.ErrorResponse;
@@ -64,8 +66,9 @@ public class GlobalExceptionHandler {
 		return respond(HttpStatus.BAD_REQUEST, "The request is not valid", problems);
 	}
 
-	/** Handles malformed JSON and missing or unsupported request parts. */
+	/** Handles malformed JSON, missing or unsupported request parts, and missing or unreadable query parameters. */
 	@ExceptionHandler({ HttpMessageNotReadableException.class, MissingServletRequestPartException.class,
+			MissingServletRequestParameterException.class, MethodArgumentTypeMismatchException.class,
 			HttpMediaTypeNotSupportedException.class, HttpRequestMethodNotSupportedException.class })
 	public ResponseEntity<ErrorResponse> handleMalformedRequest(Exception ex) {
 		HttpStatus status = ex instanceof HttpMediaTypeNotSupportedException ? HttpStatus.UNSUPPORTED_MEDIA_TYPE

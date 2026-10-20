@@ -2,6 +2,8 @@ package com.learning.resumemaker.controller;
 
 import java.util.List;
 
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -12,23 +14,29 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.learning.resumemaker.model.ExportFormat;
+import com.learning.resumemaker.model.ResumeFile;
 import com.learning.resumemaker.model.ResumeRequest;
 import com.learning.resumemaker.model.ResumeResponse;
 import com.learning.resumemaker.model.ResumeSummary;
+import com.learning.resumemaker.service.ResumeExportService;
 import com.learning.resumemaker.service.ResumeService;
 import com.learning.resumemaker.service.ResumeUploadService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-/** CRUD and PDF upload for the signed-in user's resumes. */
+/** CRUD, PDF upload and templated PDF/LaTeX download for the signed-in user's resumes. */
 @Tag(name = "Resumes", description = "The signed-in user's resumes")
 @RestController
 @RequestMapping("/api/resumes")
@@ -37,6 +45,7 @@ public class ResumeController {
 
 	private final ResumeService service;
 	private final ResumeUploadService uploadService;
+	private final ResumeExportService exportService;
 
 	/** Parses an uploaded PDF into a new resume. */
 	@Operation(summary = "Create a resume from a PDF")
@@ -91,5 +100,27 @@ public class ResumeController {
 	public ResponseEntity<Void> deleteResume(@PathVariable String id) {
 		service.deleteResume(id);
 		return ResponseEntity.noContent().build();
+	}
+
+	/** One resume of the user as a PDF or LaTeX file in the chosen template. */
+	@Operation(summary = "Download a resume", description = "Fills the chosen template (see GET /api/templates) "
+			+ "with the resume and returns it as an attachment: compiled to PDF, or as the LaTeX source.")
+	@ApiResponse(responseCode = "200", description = "The .pdf or .tex file", content = {
+			@Content(mediaType = "application/pdf"), @Content(mediaType = "application/x-tex") })
+	@ApiResponse(responseCode = "400", description = "Missing template or unknown format")
+	@ApiResponse(responseCode = "404", description = "No such resume or template")
+	@ApiResponse(responseCode = "503", description = "PDF asked for, but the server has no LaTeX engine")
+	@GetMapping("/{id}/download")
+	public ResponseEntity<byte[]> downloadResume(@PathVariable String id,
+			@Parameter(description = "Template id from GET /api/templates", example = "classic")
+			@RequestParam String template,
+			@Parameter(description = "File type: PDF or TEX (any case)", example = "pdf")
+			@RequestParam(defaultValue = "pdf") ExportFormat format) {
+		ResumeFile file = exportService.exportResume(id, template, format);
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION,
+						ContentDisposition.attachment().filename(file.fileName()).build().toString())
+				.contentType(MediaType.parseMediaType(file.contentType()))
+				.body(file.content());
 	}
 }

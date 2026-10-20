@@ -69,11 +69,14 @@ class ResumeParserAgent:
         return model.bind(format="json") if isinstance(model, ChatOllama) else model
 
     def parse(self, text: str) -> ParsedResume:
-        reply = self._runnable.invoke([
+        message = self._runnable.invoke([
             SystemMessage(RESUME_PARSER_PROMPT),
             HumanMessage(f"<resume_text>\n{text}\n</resume_text>"),
-        ]).text
+        ])
+        reply = message.text
         log.info("%s: model replied (%d characters)", self.name, len(reply))
+        if message.response_metadata.get("finish_reason") in ("length", "MAX_TOKENS"):  # OpenAI-style / Gemini
+            log.error("%s: reply was cut off at the model's output limit, so its JSON is incomplete", self.name)
         resume = self._to_resume(reply)
         grounding = TextGrounding(text)
         grounding.apply(resume)

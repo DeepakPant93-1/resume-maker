@@ -1,6 +1,5 @@
-streamlit>=1.37.0  # st.context.cookies, used to stay logged in across a page refresh
+streamlit[pdf]>=1.49.0  # st.context.cookies (stay logged in on refresh); st.pdf (template preview, needs the [pdf] extra)
 pandas>=2.2.0
-python-docx>=0.8.11
 reportlab>=4.0.0
 pypdf>=4.0.0
 requests>=2.31.0

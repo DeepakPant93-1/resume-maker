@@ -221,7 +221,6 @@ elif page == "NewPage":
 ```
 streamlit>=1.28.1
 pandas>=2.1.1
-python-docx>=0.8.11
 pypdf>=3.17.1
 ```
 
@@ -233,7 +232,7 @@ pypdf>=3.17.1
 - [ ] Add utility functions in `utils/`
 - [ ] Database integration for persistence
 - [ ] Claude API integration for AI features
-- [ ] Export to PDF/DOCX
+- [ ] Export to PDF
 - [ ] Authentication system
 - [ ] Dark mode toggle
 - [ ] Internationalization (i18n)

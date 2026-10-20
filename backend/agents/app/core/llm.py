@@ -6,7 +6,7 @@ from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import BaseMessage
 
-from app.core.config import DEFAULT_MODELS, Settings, get_settings
+from app.core.config import DEFAULT_MODELS, KEYED_PROVIDERS, Settings, get_settings
 
 log = logging.getLogger(__name__)
 
@@ -38,8 +38,8 @@ class ModelFactory:
         """Id of the fallback model, or None when there is none (see `build_fallback` for the rules)."""
         if self.settings.fallback_model:
             return self.settings.fallback_model
-        other = self._other_provider()
-        return DEFAULT_MODELS[other] if self._has_key(other) else None
+        other = self._fallback_provider()
+        return DEFAULT_MODELS[other] if other else None
 
     def build_primary(self, tier: str = "agent") -> BaseChatModel:
         """Build the chat model for the configured provider and `tier` (needs tool-calling support)."""
@@ -56,27 +56,23 @@ class ModelFactory:
     def build_fallback(self) -> Optional[BaseChatModel]:
         """Model to switch to when the primary keeps failing (e.g. provider overload), or None if none is available.
 
-        `AGENTS_FALLBACK_MODEL` names another model on the same provider. Otherwise the other provider's default
-        model is used, but only if its API key is set.
+        `AGENTS_FALLBACK_MODEL` names another model on the same provider. Otherwise the default model of the first
+        other provider with an API key is used (`KEYED_PROVIDERS` order), e.g. Groq when Gemini's quota runs out.
         """
         provider = self.settings.resolved_provider()
         if self.settings.fallback_model:
             log.info("Fallback model: %s (%s)", self.settings.fallback_model, provider)
             return self._init(provider, self.settings.fallback_model)
-        other = self._other_provider()
-        if not self._has_key(other):
+        other = self._fallback_provider()
+        if other is None:
             return None
         log.info("Fallback model: %s (%s)", DEFAULT_MODELS[other], other)
         return self._init(other, DEFAULT_MODELS[other])
 
-    def _other_provider(self) -> str:
-        return "gemini" if self.settings.resolved_provider() == "anthropic" else "anthropic"
-
-    def _has_key(self, provider: str) -> bool:
-        if provider == "ollama":
-            return False  # never a silent fallback; set AGENTS_FALLBACK_MODEL to use it explicitly
-        key = self.settings.google_api_key if provider == "gemini" else self.settings.anthropic_api_key
-        return bool(key)
+    def _fallback_provider(self) -> Optional[str]:
+        """First provider other than the primary that has an API key. Ollama is never a silent fallback."""
+        primary = self.settings.resolved_provider()
+        return next((p for p in KEYED_PROVIDERS if p != primary and self.settings.api_key(p)), None)
 
     def _init(self, provider: str, model: str) -> BaseChatModel:
         limits = {"timeout": self.settings.llm_timeout_seconds, "max_retries": self.settings.llm_max_retries}
@@ -89,6 +85,10 @@ class ModelFactory:
             return init_chat_model(
                 model, model_provider="anthropic", api_key=self.settings.anthropic_api_key, **limits
             )
+        if provider == "groq":
+            if model.startswith("openai/gpt-oss"):  # other Groq models reject these effort values
+                limits["reasoning_effort"] = self.settings.groq_reasoning_effort
+            return init_chat_model(model, model_provider="groq", api_key=self.settings.groq_api_key, **limits)
         return init_chat_model(
             model, model_provider="google_genai", api_key=self.settings.google_api_key, **limits
         )

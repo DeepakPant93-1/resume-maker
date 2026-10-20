@@ -1,0 +1,131 @@
+%===============================================================================
+% Classic resume (filled example)
+%
+% Written to work in BOTH:
+%   * real LaTeX engines (pdflatex / xelatex / Overleaf), and
+%   * latex.js based web viewers, which only support a small subset of LaTeX
+%     (no \newcommand, no tabular, no \hfill, no \rule, no enumitem options).
+%
+% Layout tricks used because of that:
+%   * dates / locations are right-aligned with a picture environment
+%   * section rules are drawn with \line inside a picture
+%   * list spacing is set with \setlength inside each itemize
+% Page geometry: letter paper, 0.5in margins -> text width 7.5in (542pt).
+%===============================================================================
+\documentclass[11pt]{article}
+
+\usepackage[letterpaper,margin=0.5in]{geometry}
+\usepackage[hidelinks]{hyperref}
+
+\pagestyle{empty}
+\setlength{\textwidth}{7.5in}
+\setlength{\unitlength}{1pt}
+
+\begin{document}
+
+%----------HEADING----------
+\begin{center}
+{\Huge \textbf{Kriti Jaiswal}}\\[6pt]
+\small +91 98XXXXXXXX $|$
+\href{mailto:kriti.jaiswal@example.com}{\underline{kriti.jaiswal@example.com}} $|$
+\href{https://linkedin.com/in/kriti-jaiswal1-}{\underline{linkedin.com/in/kriti-jaiswal1-}} $|$
+\href{https://github.com/kriti-jaiswal}{\underline{github.com/kriti-jaiswal}}
+\end{center}
+
+%-----------EDUCATION-----------
+\noindent{\large \textsc{Education}}\\[-4pt]
+\begin{picture}(542,4)\put(0,2){\line(1,0){542}}\end{picture}\\
+\begin{picture}(536,13)
+\put(11,4){\makebox(0,0)[l]{\textbf{Lovely Professional University}}}
+\put(536,4){\makebox(0,0)[r]{Punjab, India}}
+\end{picture}\\
+\begin{picture}(536,12)
+\put(11,4){\makebox(0,0)[l]{\small\textit{Bachelor of Technology - Computer Science and Engineering; CGPA: 8.60}}}
+\put(536,4){\makebox(0,0)[r]{\small\textit{Aug. 2020 -- June 2024}}}
+\end{picture}
+
+\vspace{6pt}
+
+%-----------EXPERIENCE-----------
+\noindent{\large \textsc{Experience}}\\[-4pt]
+\begin{picture}(542,4)\put(0,2){\line(1,0){542}}\end{picture}\\
+\begin{picture}(536,13)
+\put(11,4){\makebox(0,0)[l]{\textbf{Software Development Engineer Intern}}}
+\put(536,4){\makebox(0,0)[r]{Jan 2024 -- July 2024}}
+\end{picture}\\
+\begin{picture}(536,12)
+\put(11,4){\makebox(0,0)[l]{\small\textit{GE Digital}}}
+\put(536,4){\makebox(0,0)[r]{\small\textit{Hyderabad, India}}}
+\end{picture}
+\begin{itemize}
+\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}
+\small
+\item Developed and deployed \textbf{RESTful APIs} using \textbf{Java (Spring Boot)} and \textbf{ORM tools (Hibernate/JPA)} to enable efficient data access and robust \textbf{CRUD operations} across relational databases.
+\item \textbf{Enhanced} search and data retrieval performance by \textbf{optimizing queries} and integrating \textbf{custom filtering mechanisms} within a high-traffic operational insights platform.
+\item \textbf{Maintained high code quality} through peer code reviews, adherence to clean code principles, and implementation of comprehensive \textbf{unit and integration tests} using \textbf{JUnit} and \textbf{Mockito}.
+\end{itemize}
+
+\noindent\begin{picture}(536,13)
+\put(11,4){\makebox(0,0)[l]{\textbf{Amazon ML Summer School}}}
+\put(536,4){\makebox(0,0)[r]{July 2022 -- August 2022}}
+\end{picture}\\
+\begin{picture}(536,12)
+\put(11,4){\makebox(0,0)[l]{\small\textit{Amazon}}}
+\put(536,4){\makebox(0,0)[r]{\small\textit{Virtual}}}
+\end{picture}
+\begin{itemize}
+\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}
+\small
+\item \textbf{Implemented} supervised, unsupervised, and complex \textbf{machine learning algorithms} using a suite of \textbf{Python libraries} such as scikit-learn, NumPy, and pandas.
+\item \textbf{Developed machine learning models} for diverse projects using advanced algorithms and tools, achieving \textbf{accuracy rates exceeding 95\%}.
+\end{itemize}
+
+%-----------PROJECTS-----------
+\noindent{\large \textsc{Projects}}\\[-4pt]
+\begin{picture}(542,4)\put(0,2){\line(1,0){542}}\end{picture}\\
+\begin{picture}(536,13)
+\put(11,4){\makebox(0,0)[l]{\small\textbf{Women Security App} $|$ \textit{Java, XML, Firebase, Android Studio}}}
+\put(536,4){\makebox(0,0)[r]{July 2022 -- Dec 2022}}
+\end{picture}
+\begin{itemize}
+\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}
+\small
+\item Developed an \textbf{Android mobile application} enabling \textbf{real-time location tracking} among users in private groups via unique join codes.
+\item Integrated \textbf{emergency features} such as one-click \textbf{SOS alerts}, calls, and messaging to pre-defined contacts.
+\item Utilized \textbf{Firebase} for real-time database, \textbf{authentication}, and secure data synchronization.
+\end{itemize}
+
+\noindent\begin{picture}(536,13)
+\put(11,4){\makebox(0,0)[l]{\small\textbf{CGPA Booster} $|$ \textit{HTML, CSS, JavaScript}}}
+\put(536,4){\makebox(0,0)[r]{Jan 2022 -- June 2022}}
+\end{picture}
+\begin{itemize}
+\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}
+\small
+\item \textbf{Engineered an innovative Ed-Tech platform} that empowers students to \textbf{learn, teach, and collaborate} seamlessly, revolutionizing academic growth and resource accessibility.
+\item \textbf{Developed CGPA Booster} as a transformative solution designed to bridge the critical gap between students and vital study resources, enhancing academic performance and knowledge-sharing.
+\item \textbf{Built the platform from the ground up} using core web technologies (\textbf{HTML}, \textbf{CSS}, \textbf{JavaScript}), ensuring a user-friendly, interactive, and scalable interface for diverse student needs.
+\end{itemize}
+
+%-----------CERTIFICATES / ACHIEVEMENTS-----------
+\noindent{\large \textsc{Certificates / Achievements}}\\[-4pt]
+\begin{picture}(542,4)\put(0,2){\line(1,0){542}}\end{picture}
+\begin{itemize}
+\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}
+\item \textbf{CGPA Booster}: Attracted \textbf{10,000+ monthly visitors}, Google AdSense approved.
+\item \textbf{Hacktoberfest 2021/2022 Contribution}: Contributed to open source by submitting \textbf{8+ pull requests} accepted on GitHub.
+\item \textbf{Top 50 in Codeathon}: Ranked among the top 50 students in GE Digital's global competition.
+\item \textbf{1,000+ DSA Questions Solved}: Completed challenges on platforms like \textbf{LeetCode}, \textbf{CodeChef} and \textbf{GFG}.
+\end{itemize}
+
+%-----------TECHNICAL SKILLS-----------
+\noindent{\large \textsc{Technical Skills}}\\[-4pt]
+\begin{picture}(542,4)\put(0,2){\line(1,0){542}}\end{picture}\\
+\small
+\hspace{11pt}\textbf{Programming Languages}: C++, C, Java, JavaScript, Python\\
+\hspace{11pt}\textbf{Databases}: MySQL, PostgreSQL\\
+\hspace{11pt}\textbf{Frameworks}: Spring Boot, MVC, Bootstrap\\
+\hspace{11pt}\textbf{Tools/Technologies}: AWS, Git, JUnit, Jenkins, RESTful Web Services\\
+\hspace{11pt}\textbf{Core Concepts}: Data Structures and Algorithms, Object-Oriented Programming (OOP), Microservices, Operating System, Computer Networks
+
+\end{document}
