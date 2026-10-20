@@ -1,0 +1,86 @@
+# Runs the whole Resume Maker stack: MongoDB, the Python agent service, the Spring Boot API and the Streamlit UI.
+#
+#   docker compose up --build -d     # build and start everything
+#   docker compose logs -f backend   # follow one service's logs
+#   docker compose down              # stop (add -v to also delete the MongoDB data)
+#
+# UI: http://localhost:8501   API: http://localhost:8080 (Swagger: /swagger-ui.html)   Agents: http://localhost:8000
+#
+# LLM keys (ANTHROPIC_API_KEY / GOOGLE_API_KEY) and model settings come from backend/agents/.env.
+# Other values below can be overridden from the shell or a root .env file, e.g. JWT_SECRET, MONGO_ROOT_PASSWORD.
+
+name: resume-maker
+
+services:
+  mongodb:
+    image: mongo:8
+    # Listen on 27018 instead of the default 27017, which is often taken by a local mongod or another project.
+    command: ["mongod", "--port", "27018"]
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: resume_maker
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-secret}
+    # Only for inspecting the data from the host (e.g. mongosh/Compass); containers use mongodb:27018.
+    ports:
+      - "127.0.0.1:${MONGO_PORT:-27018}:27018"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--port", "27018", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  agents:
+    build:
+      context: backend/agents
+    image: resume-maker-agents:latest
+    restart: unless-stopped
+    env_file:
+      - path: backend/agents/.env
+        required: false
+    environment:
+      # Reaches an Ollama server running on the host machine (only used when AGENTS_PROVIDER=ollama).
+      AGENTS_OLLAMA_BASE_URL: ${AGENTS_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${AGENTS_PORT:-8000}:8000"
+
+  backend:
+    build:
+      context: backend/resumemaker
+    image: resume-maker-backend:latest
+    restart: unless-stopped
+    environment:
+      SPRING_MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME:-root}:${MONGO_ROOT_PASSWORD:-secret}@mongodb:27018/resume_maker?authSource=admin
+      AGENT_SERVICE_URL: http://agents:8000
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-before-deploying-0123456789}
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      agents:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: frontend
+    image: resume-maker-frontend:latest
+    restart: unless-stopped
+    environment:
+      RESUMEMAKER_API_URL: http://backend:8080
+    volumes:
+      # Streamlit theme/navigation settings live at the repo root, outside the frontend build context.
+      - ./.streamlit:/app/.streamlit:ro
+    ports:
+      - "${FRONTEND_PORT:-8501}:8501"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  mongo-data:

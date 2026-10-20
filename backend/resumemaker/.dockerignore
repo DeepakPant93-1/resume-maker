@@ -1,0 +1,7 @@
+target/
+.idea/
+.vscode/
+*.iml
+HELP.md
+compose.yaml
+Makefile
