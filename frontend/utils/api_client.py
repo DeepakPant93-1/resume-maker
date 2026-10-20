@@ -95,6 +95,11 @@ def list_resumes():
     return _call("GET", "/api/resumes")
 
 
+def list_applications():
+    """The signed-in user's tracked applications: {id, company, role, resumeId, stage, createdAt, updatedAt}."""
+    return _call("GET", "/api/applications")
+
+
 def get_resume(resume_id):
     """One saved resume, in the shape to_editor_data() expects."""
     return _call("GET", f"/api/resumes/{resume_id}")

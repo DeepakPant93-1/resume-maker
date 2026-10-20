@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 import streamlit as st
 from styles.theme import html, page_header, stat_card
-from utils.api_client import ApiError, delete_resume, get_resume, list_resumes, to_editor_data
+from utils.api_client import ApiError, delete_resume, get_resume, list_applications, list_resumes, to_editor_data
 from utils.resume_export import (DOCX_MIME, MARKDOWN_MIME, PDF_MIME, file_stem, to_docx, to_markdown,
                                  to_pdf)
 
@@ -161,10 +161,14 @@ def render():
 
     # ---- Stats ----
     resumes, load_error = _load_resumes()
+    try:
+        applications_count = len(list_applications())
+    except ApiError:
+        applications_count = "—"
     scores = [r["ats_score"] for r in resumes if r.get("ats_score") is not None]
     stats = [
         ("Total Resumes", len(resumes), None),
-        ("Applications", st.session_state.get("applications_count", 12), None),  # no backend for this yet
+        ("Applications", applications_count, None),
         ("Best ATS Score", f"{max(scores)}%" if scores else "—", "#22A06B"),
         ("AI Credits", st.session_state.get("ai_credits", 50), "#6C4FE0"),  # no backend for this yet
     ]
