@@ -138,6 +138,18 @@ class ResumeServiceTest {
 	}
 
 	@Test
+	void deleteRemovesOnlyAResumeOfTheSignedInUser() {
+		ResumeDocument existing = ResumeDocument.builder().id("r1").userId("u1").build();
+		when(repository.findByIdAndUserId("r1", "u1")).thenReturn(Optional.of(existing));
+		when(repository.findByIdAndUserId("theirs", "u1")).thenReturn(Optional.empty());
+
+		service().deleteResume("r1");
+		assertThatThrownBy(() -> service().deleteResume("theirs")).isInstanceOf(ResumeNotFoundException.class);
+
+		verify(repository).delete(existing);
+	}
+
+	@Test
 	void updateAndGetFailForAnUnknownResume() {
 		when(repository.findByIdAndUserId("nope", "u1")).thenReturn(Optional.empty());
 

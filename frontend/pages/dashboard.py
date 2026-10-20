@@ -7,7 +7,9 @@ from datetime import datetime, timezone
 
 import streamlit as st
 from styles.theme import html, page_header, stat_card
-from utils.api_client import ApiError, get_resume, list_resumes, to_editor_data
+from utils.api_client import ApiError, delete_resume, get_resume, list_applications, list_resumes, to_editor_data
+from utils.resume_export import (DOCX_MIME, MARKDOWN_MIME, PDF_MIME, file_stem, to_docx, to_markdown,
+                                 to_pdf)
 
 _CSS = """
 <style>
@@ -94,6 +96,48 @@ def _open_resume(resume_id):
     _go("MyResumes")
 
 
+@st.dialog("Download resume")
+def _download_dialog(resume_id, title):
+    """Fetch the saved resume and offer it as a PDF, Word document or Markdown file."""
+    try:
+        data = to_editor_data(get_resume(resume_id))
+    except ApiError as e:
+        st.error(str(e))
+        return
+    st.caption(title)
+    stem = file_stem(data)
+    st.download_button("Download as PDF (.pdf)", to_pdf(data), f"{stem}.pdf", PDF_MIME,
+                       type="primary", use_container_width=True, key=f"dl_pdf_{resume_id}")
+    st.download_button("Download as Word (.docx)", to_docx(data), f"{stem}.docx", DOCX_MIME,
+                       use_container_width=True, key=f"dl_docx_{resume_id}")
+    st.download_button("Download as Markdown (.md)", to_markdown(data), f"{stem}.md", MARKDOWN_MIME,
+                       use_container_width=True, key=f"dl_md_{resume_id}")
+
+
+@st.dialog("Delete resume")
+def _delete_dialog(resume_id, title):
+    """Ask for confirmation, then delete the saved resume."""
+    st.write(f"Delete **{title}**? This cannot be undone.")
+    yes, no = st.columns(2)
+    with no:
+        if st.button("Cancel", use_container_width=True, key=f"del_no_{resume_id}"):
+            st.rerun()
+    with yes:
+        if st.button("Delete", type="primary", use_container_width=True, key=f"del_yes_{resume_id}"):
+            try:
+                delete_resume(resume_id)
+            except ApiError as e:
+                if e.status_code != 404:  # already gone is fine: the list below refreshes either way
+                    st.error(str(e))
+                    return
+            if st.session_state.get("resume_id") == resume_id:
+                # The editor still holds it: forget it, so Save creates a new resume instead of updating a deleted one.
+                st.session_state.resume_id = None
+                st.session_state.pop("resume_data", None)
+            st.toast("Resume deleted", icon=":material/check_circle:")
+            st.rerun()
+
+
 def render():
     st.markdown(_CSS, unsafe_allow_html=True)
 
@@ -117,10 +161,14 @@ def render():
 
     # ---- Stats ----
     resumes, load_error = _load_resumes()
+    try:
+        applications_count = len(list_applications())
+    except ApiError:
+        applications_count = "—"
     scores = [r["ats_score"] for r in resumes if r.get("ats_score") is not None]
     stats = [
         ("Total Resumes", len(resumes), None),
-        ("Applications", st.session_state.get("applications_count", 12), None),  # no backend for this yet
+        ("Applications", applications_count, None),
         ("Best ATS Score", f"{max(scores)}%" if scores else "—", "#22A06B"),
         ("AI Credits", st.session_state.get("ai_credits", 50), "#6C4FE0"),  # no backend for this yet
     ]
@@ -153,3 +201,10 @@ def render():
             )
             if st.button("Open in editor", key=f"open_{r['id']}", use_container_width=True):
                 _open_resume(r["id"])
+            download, delete = st.columns(2)
+            with download:
+                if st.button("Download", key=f"download_{r['id']}", use_container_width=True):
+                    _download_dialog(r["id"], r["title"])
+            with delete:
+                if st.button("Delete", key=f"delete_{r['id']}", use_container_width=True):
+                    _delete_dialog(r["id"], r["title"])

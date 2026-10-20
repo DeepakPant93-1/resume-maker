@@ -40,6 +40,9 @@ class ParseRoutes(BaseRoutes):
         except ResumeParseError as exc:
             log.error("Resume not parsed: %s", exc)
             raise HTTPException(status_code=502, detail="The AI model did not return a usable resume") from exc
+        except Exception as exc:  # the provider failed on every model and retry (overload, quota, network)
+            log.error("Resume not parsed, model call failed: %s", exc)
+            raise HTTPException(status_code=503, detail="The AI model is busy, try again shortly") from exc
 
 
 router = ParseRoutes().router

@@ -1,14 +1,13 @@
 """Applications Page (Figma: applications)"""
+from html import escape
+
 import streamlit as st
 
 from styles.theme import css, html, page_header
+from utils.api_client import ApiError, list_applications, list_resumes
 
-APPLICATIONS = [
-    # company, role, resume used, ATS match, stage, recommended action
-    ("Acme Corp", "Senior Java Developer", "Backend Tech Lead", 92, "Technical Interview", "Prepare Interview"),
-    ("CloudCo", "Lead Cloud Architect", "Cloud Architect Pro", 87, "Applied", "Follow Up"),
-    ("AI Labs", "AI Workflow Engineer", "AI Research Lead", 84, "Initial Screening", "Schedule Call"),
-]
+STAGE_LABELS = {"APPLIED": "Applied", "SCREENING": "Initial Screening", "INTERVIEW": "Interview",
+                "OFFER": "Offer", "REJECTED": "Rejected"}
 
 _CSS = """
 .r-table { width: 100%; border-collapse: separate; border-spacing: 0; background: #fff;
@@ -19,8 +18,6 @@ _CSS = """
 .r-table .co { font-weight: 600; color: #111827; }
 .r-table .role { color: #6B7280; font-size: 0.75rem; }
 .r-table .ats { color: #22A06B; font-weight: 700; }
-.r-action { display: inline-block; background: #6C4FE0; color: #fff; border-radius: 6px;
-            padding: 0.35rem 0.8rem; font-size: 0.75rem; font-weight: 600; }
 """
 
 
@@ -29,15 +26,28 @@ def render():
     page_header("Job Application Tracker",
                 "Connect and monitor your resume variations, matches, and pipeline status.")
 
-    rows = "".join(
-        f'<tr><td><div class="co">{company}</div><div class="role">{role}</div></td>'
-        f'<td><span class="r-badge soft">{resume}</span></td>'
-        f'<td class="ats">{ats}%</td>'
-        f'<td><span class="r-badge grey">{stage}</span></td>'
-        f'<td><span class="r-action">{action}</span></td></tr>'
-        for company, role, resume, ats, stage, action in APPLICATIONS
-    )
+    try:
+        applications = list_applications()
+        resumes = {r["id"]: r for r in list_resumes()}
+    except ApiError as e:
+        st.warning(f"Could not load your applications: {e}")
+        return
+    if not applications:
+        html('<div class="r-card r-muted">No applications tracked yet.</div>')
+        return
+
+    def _row(app):
+        resume = resumes.get(app.get("resumeId")) or {}
+        ats = resume.get("ats_score")
+        return (
+            f'<tr><td><div class="co">{escape(app["company"])}</div>'
+            f'<div class="role">{escape(app["role"])}</div></td>'
+            f'<td><span class="r-badge soft">{escape(resume.get("title") or "—")}</span></td>'
+            f'<td class="ats">{f"{ats}%" if ats is not None else "—"}</td>'
+            f'<td><span class="r-badge grey">{STAGE_LABELS.get(app["stage"], app["stage"])}</span></td></tr>'
+        )
+
+    rows = "".join(_row(app) for app in applications)
     html('<table class="r-table"><thead><tr>'
-         '<th>Company / Role</th><th>Resume Used</th><th>ATS Match</th>'
-         '<th>Pipeline Stage</th><th>Recommended Action</th>'
+         '<th>Company / Role</th><th>Resume Used</th><th>ATS Match</th><th>Pipeline Stage</th>'
          f'</tr></thead><tbody>{rows}</tbody></table>')

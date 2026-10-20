@@ -302,13 +302,7 @@ def render():
                 st.session_state.pop("ats_job_used", None)  # each open starts with a readability-only score
                 ats_dialog()
         with a3:
-            if st.button("Save", key="btn_save", type="primary", use_container_width=True):
-                try:
-                    saved = save_resume(st.session_state.get("resume_id"), st.session_state.resume_data)
-                    st.session_state.resume_id = saved["id"]
-                    st.toast("Resume saved", icon=":material/check_circle:")
-                except ApiError as e:
-                    st.toast(str(e), icon=":material/error:")
+            save_clicked = st.button("Save", key="btn_save", type="primary", use_container_width=True)
 
     col_sections, col_content, col_preview = st.columns([1.4, 2.6, 2.4])
 
@@ -330,3 +324,13 @@ def render():
         with card("preview"):
             html('<div class="r-card-title">Live Preview</div>')
             html(editor_preview_html())
+
+    # Save only after the editor widgets above have run: they write the latest typed values (the field the user
+    # was just editing) into resume_data, so saving earlier in the run would store the previous values.
+    if save_clicked:
+        try:
+            saved = save_resume(st.session_state.get("resume_id"), st.session_state.resume_data)
+            st.session_state.resume_id = saved["id"]
+            st.toast("Resume saved", icon=":material/check_circle:")
+        except ApiError as e:
+            st.toast(str(e), icon=":material/error:")
