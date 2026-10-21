@@ -4,17 +4,51 @@ AI-powered resume builder for tailoring and optimizing resumes to job descriptio
 
 ## 🚀 Quick Start
 
-### Install Dependencies
+The app has three parts. Start each in its own terminal (all commands run from the repo root; `make help` lists them).
+
+| Part | Port | Start | Stop |
+|------|------|-------|------|
+| Frontend (Streamlit) | 8501 | `make run` | `make stop` |
+| Spring Boot API (`backend/resumemaker`) | 8080 | `make run-backend` | `make stop-backend` |
+| Python agent service (`backend/agents`) | 8000 | `make run-agent` | `make stop-agent` |
+
+`make restart-backend` and `make restart-agent` stop and then start the service.
+
+### 1. Frontend
 ```bash
-pip install -r requirements.txt
+make build   # pip install -r frontend/requirements.txt (first time only)
+make run     # http://localhost:8501
 ```
 
-### Run the App
+### 2. Backend (Spring Boot API)
+Needs Java and Docker. `make run-backend` runs `./mvnw spring-boot:run` from `backend/resumemaker`, and Spring's Docker Compose support starts MongoDB for you.
 ```bash
-streamlit run frontend/app.py
+make run-backend   # http://localhost:8080
 ```
+If it fails with "Port 8080 was already in use", run `make stop-backend` (or `make restart-backend`).
 
-The app will open at `http://localhost:8501`
+### 3. Agent service (Python)
+Create the virtualenv once, then add your model key:
+```bash
+cd backend/agents
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+```
+Create `backend/agents/.env` with `ANTHROPIC_API_KEY=...` and/or `GOOGLE_API_KEY=...`. For a local Ollama server, set `AGENTS_PROVIDER=ollama` instead. With both keys set, `AGENTS_PROVIDER` picks the provider.
+```bash
+make run-agent   # http://localhost:8000
+```
+If the port is stuck, run `make stop-agent` (or `make restart-agent`).
+
+### Run everything
+Start the Spring Boot API and the agent service first, then the frontend: `make run-backend`, `make run-agent`, `make run`.
+
+### Docker (frontend only)
+```bash
+make docker-build
+make docker-run    # http://localhost:8501
+make docker-stop
+```
 
 ---
 

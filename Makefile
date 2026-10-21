@@ -1,4 +1,4 @@
-.PHONY: build run stop help run-agent stop-agent run-backend stop-backend restart-backend docker-build docker-run docker-stop restart-agent
+.PHONY: build run stop help run-agent stop-agent run-backend stop-backend restart-backend docker-build docker-run docker-stop restart-agent deploy deploy-stop deploy-logs deploy-status
 
 help:
 	@echo "Available commands:"
@@ -16,6 +16,12 @@ help:
 	@echo "  make docker-build       - Build the Docker image for the frontend"
 	@echo "  make docker-run         - Run the frontend application in Docker"
 	@echo "  make docker-stop        - Stop the Docker container"
+	@echo ""
+	@echo "Full stack (docker-compose.yml: MongoDB, agents, backend, frontend):"
+	@echo "  make deploy             - Build and start the whole application in the background"
+	@echo "  make deploy-stop        - Stop and remove the stack's containers (keeps MongoDB data)"
+	@echo "  make deploy-logs        - Follow logs of all services (SERVICE=backend for one)"
+	@echo "  make deploy-status      - Show the state of each service"
 
 build:
 	@echo "Building frontend..."
@@ -79,3 +85,20 @@ stop-backend:
 	echo "Port 8080 is free"
 
 restart-backend: stop-backend run-backend
+
+# --wait blocks until every service passes its healthcheck, so a broken service fails the command.
+deploy:
+	@echo "Building and starting the full Resume Maker stack..."
+	docker compose up --build -d --wait
+	@echo "UI: http://localhost:8501   API: http://localhost:8080   Agents: http://localhost:8000"
+
+# Add -v to the command manually to also delete the MongoDB volume.
+deploy-stop:
+	@echo "Stopping the full Resume Maker stack..."
+	docker compose down
+
+deploy-logs:
+	docker compose logs -f $(SERVICE)
+
+deploy-status:
+	docker compose ps
